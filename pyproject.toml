@@ -1,0 +1,54 @@
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "immtrack"
+version = "0.1.0"
+description = "IMM-UKF multiple object tracking for 3D bounding boxes"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Adam Huang" }]
+dependencies = ["numpy>=2.4.4"]
+
+[dependency-groups]
+dev = ["pytest", "pybind11", "scikit-build-core"]
+
+[tool.uv]
+no-build-isolation-package = ["immtrack"]
+
+[tool.scikit-build]
+wheel.packages = ["src/immtrack"]
+build-dir = "build/{wheel_tag}"
+editable.rebuild = true
+cmake.args = ["-G", "Unix Makefiles"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/python"]
+addopts = ["--verbose", "--strict-markers", "--strict-config", "-ra"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+extend-select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "N",
+    "UP",
+    "ANN",
+    "C4",
+    "SIM",
+    "RUF",
+    "PT",
+    "PTH",
+    "RET",
+]
+
+[tool.ruff.lint.flake8-annotations]
+suppress-none-returning = true
