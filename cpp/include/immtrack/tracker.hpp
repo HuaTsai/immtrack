@@ -1,9 +1,13 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <algorithm>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 #include <immtrack/bbox.hpp>
+#include <immtrack/detail/hungarian.hpp>
 #include <immtrack/tracked_object.hpp>
 
 namespace immtrack {
@@ -100,6 +104,134 @@ class Track {
     int miss_count_ = 0;
     int age_ = 0;
     Status status_ = Status::Tentative;
+};
+
+template <class Filter, template <class> class CostPolicy>
+class BBoxTracker {
+   public:
+    struct Config {
+        int n_init = 3;
+        int max_age = 5;
+        int min_hits = 3;
+        double size_ema_alpha = 0.7;
+    };
+
+    explicit BBoxTracker(Config cfg = {}) : cfg_(cfg) {}
+
+    std::vector<TrackedObject> update(
+        const std::vector<BoundingBox>& detections) {
+        return update_impl(detections, /*has_dt=*/false, /*dt=*/0.0);
+    }
+
+    std::vector<TrackedObject> update(
+        const std::vector<BoundingBox>& detections, double dt) {
+        return update_impl(detections, /*has_dt=*/true, dt);
+    }
+
+    void reset() {
+        tracks_.clear();
+        next_id_ = 0;
+    }
+
+    std::size_t track_count() const noexcept { return tracks_.size(); }
+
+   private:
+    using TrackT = Track<Filter>;
+
+    std::vector<TrackedObject> update_impl(
+        const std::vector<BoundingBox>& detections, bool has_dt, double dt) {
+        if (has_dt) {
+            for (auto& t : tracks_) {
+                if (t.status() != TrackT::Status::Deleted) {
+                    t.predict(dt);
+                }
+            }
+        }
+
+        std::unordered_map<std::string, std::vector<int>> track_by_class;
+        std::unordered_map<std::string, std::vector<int>> det_by_class;
+
+        for (int i = 0; i < static_cast<int>(tracks_.size()); ++i) {
+            if (tracks_[i].status() != TrackT::Status::Deleted) {
+                track_by_class[tracks_[i].class_name()].push_back(i);
+            }
+        }
+        for (int j = 0; j < static_cast<int>(detections.size()); ++j) {
+            det_by_class[detections[j].class_name].push_back(j);
+        }
+
+        std::vector<bool> track_matched(tracks_.size(), false);
+        std::vector<bool> det_matched(detections.size(), false);
+
+        for (const auto& [cls, det_idxs] : det_by_class) {
+            const auto trk_it = track_by_class.find(cls);
+            if (trk_it == track_by_class.end() || trk_it->second.empty()) {
+                continue;
+            }
+            const auto& trk_idxs = trk_it->second;
+
+            const int rows = static_cast<int>(trk_idxs.size());
+            const int cols = static_cast<int>(det_idxs.size());
+            Eigen::MatrixXd cost(rows, cols);
+            for (int r = 0; r < rows; ++r) {
+                for (int c = 0; c < cols; ++c) {
+                    const double v = CostPolicy<Filter>::cost(
+                        tracks_[trk_idxs[r]].filter(),
+                        detections[det_idxs[c]]);
+                    cost(r, c) = (v >= CostPolicy<Filter>::gate_threshold())
+                                     ? detail::kInfeasible
+                                     : v;
+                }
+            }
+
+            const auto pairs = detail::hungarian(cost);
+            for (const auto& [r, c] : pairs) {
+                if (cost(r, c) >= detail::kInfeasible) {
+                    continue;
+                }
+                const int trk = trk_idxs[r];
+                const int det = det_idxs[c];
+                tracks_[trk].update(detections[det], cfg_.size_ema_alpha,
+                                    cfg_.n_init);
+                track_matched[trk] = true;
+                det_matched[det] = true;
+            }
+        }
+
+        for (int i = 0; i < static_cast<int>(tracks_.size()); ++i) {
+            if (!track_matched[i] &&
+                tracks_[i].status() != TrackT::Status::Deleted) {
+                tracks_[i].mark_missed(cfg_.max_age);
+            }
+        }
+
+        for (int j = 0; j < static_cast<int>(detections.size()); ++j) {
+            if (!det_matched[j]) {
+                tracks_.emplace_back(next_id_++, detections[j]);
+            }
+        }
+
+        tracks_.erase(
+            std::remove_if(tracks_.begin(), tracks_.end(),
+                           [](const TrackT& t) {
+                               return t.status() == TrackT::Status::Deleted;
+                           }),
+            tracks_.end());
+
+        std::vector<TrackedObject> out;
+        out.reserve(tracks_.size());
+        for (const auto& t : tracks_) {
+            if (t.status() == TrackT::Status::Confirmed &&
+                t.miss_count() == 0 && t.hit_count() >= cfg_.min_hits) {
+                out.push_back(t.snapshot());
+            }
+        }
+        return out;
+    }
+
+    Config cfg_;
+    std::vector<TrackT> tracks_;
+    int next_id_ = 0;
 };
 
 }  // namespace immtrack
