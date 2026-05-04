@@ -57,6 +57,11 @@ class UKF {
     using StateMat = Eigen::Matrix<double, N, N>;
     using MeasVec = Eigen::Matrix<double, M, 1>;
 
+    struct PredictedMeasurement {
+        MeasVec z_pred;
+        Eigen::Matrix<double, M, M> S;
+    };
+
     UKF() : UKF(1e-3, 2.0, 0.0) {}
 
     UKF(double alpha, double beta, double kappa)
@@ -98,75 +103,42 @@ class UKF {
     }
 
     double update(const MeasVec& z) {
-        const auto sigmas =
-            detail::generate_sigma_points<N>(x_, P_, weights_.lambda);
-
-        Eigen::Matrix<double, M, K> z_sigmas;
-        for (int i = 0; i < K; ++i) {
-            z_sigmas.col(i) = Obs::h(sigmas.col(i));
-        }
-
-        const MeasVec z_pred =
-            Obs::template weighted_mean<K>(z_sigmas, weights_.mean_weights);
+        const auto c = compute_innovation_();
 
         using MeasMat = Eigen::Matrix<double, M, M>;
         using CrossMat = Eigen::Matrix<double, N, M>;
 
-        MeasMat S = MeasMat::Zero();
         CrossMat T = CrossMat::Zero();
         for (int i = 0; i < K; ++i) {
-            const MeasVec dz = Obs::residual(z_sigmas.col(i), z_pred);
-            const StateVec dx = Motion::residual(sigmas.col(i), x_);
-            S.noalias() += weights_.cov_weights(i) * dz * dz.transpose();
+            const MeasVec dz = Obs::residual(c.z_sigmas.col(i), c.z_pred);
+            const StateVec dx = Motion::residual(c.sigmas.col(i), x_);
             T.noalias() += weights_.cov_weights(i) * dx * dz.transpose();
         }
-        S += Obs::measurement_noise();
 
-        Eigen::LDLT<MeasMat> S_ldlt(S);
+        Eigen::LDLT<MeasMat> S_ldlt(c.S);
         if (S_ldlt.info() != Eigen::Success) {
             throw NumericalError(
                 "UKF::update: innovation covariance not invertible");
         }
 
         const CrossMat K_gain = S_ldlt.solve(T.transpose()).transpose();
-        const MeasVec innovation = Obs::residual(z, z_pred);
+        const MeasVec innovation = Obs::residual(z, c.z_pred);
 
         x_.noalias() += K_gain * innovation;
-        const StateMat P_post = P_ - K_gain * S * K_gain.transpose();
+        const StateMat P_post = P_ - K_gain * c.S * K_gain.transpose();
         P_ = 0.5 * (P_post + P_post.transpose());
 
         return innovation.dot(S_ldlt.solve(innovation));
     }
 
-    struct PredictedMeasurement {
-        MeasVec z_pred;
-        Eigen::Matrix<double, M, M> S;
-    };
-
     // Compute predicted measurement and innovation covariance without
-    // mutating state. Used for gating / cost computation in tracking.
+    // mutating filter state. The returned `S` includes measurement noise
+    // and is symmetrised. Used for gating / cost computation in tracking.
     PredictedMeasurement predict_measurement() const {
-        const auto sigmas =
-            detail::generate_sigma_points<N>(x_, P_, weights_.lambda);
-
-        Eigen::Matrix<double, M, K> z_sigmas;
-        for (int i = 0; i < K; ++i) {
-            z_sigmas.col(i) = Obs::h(sigmas.col(i));
-        }
-
-        const MeasVec z_pred =
-            Obs::template weighted_mean<K>(z_sigmas, weights_.mean_weights);
-
+        const auto c = compute_innovation_();
         using MeasMat = Eigen::Matrix<double, M, M>;
-        MeasMat S = MeasMat::Zero();
-        for (int i = 0; i < K; ++i) {
-            const MeasVec dz = Obs::residual(z_sigmas.col(i), z_pred);
-            S.noalias() += weights_.cov_weights(i) * dz * dz.transpose();
-        }
-        S += Obs::measurement_noise();
-        S = 0.5 * (S + S.transpose());
-
-        return PredictedMeasurement{z_pred, S};
+        const MeasMat S_sym = 0.5 * (c.S + c.S.transpose());
+        return PredictedMeasurement{c.z_pred, S_sym};
     }
 
     const StateVec& state() const noexcept { return x_; }
@@ -176,6 +148,30 @@ class UKF {
     StateVec x_;
     StateMat P_;
     detail::UnscentedWeights<N> weights_;
+
+    struct InnovationCache {
+        Eigen::Matrix<double, N, K> sigmas;
+        Eigen::Matrix<double, M, K> z_sigmas;
+        MeasVec z_pred;
+        Eigen::Matrix<double, M, M> S;  // includes R, NOT yet symmetrised
+    };
+
+    InnovationCache compute_innovation_() const {
+        InnovationCache c;
+        c.sigmas = detail::generate_sigma_points<N>(x_, P_, weights_.lambda);
+        for (int i = 0; i < K; ++i) {
+            c.z_sigmas.col(i) = Obs::h(c.sigmas.col(i));
+        }
+        c.z_pred = Obs::template weighted_mean<K>(c.z_sigmas, weights_.mean_weights);
+
+        c.S.setZero();
+        for (int i = 0; i < K; ++i) {
+            const MeasVec dz = Obs::residual(c.z_sigmas.col(i), c.z_pred);
+            c.S.noalias() += weights_.cov_weights(i) * dz * dz.transpose();
+        }
+        c.S += Obs::measurement_noise();
+        return c;
+    }
 };
 
 }  // namespace immtrack

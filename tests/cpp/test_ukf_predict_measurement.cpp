@@ -38,3 +38,18 @@ TEST_CASE("predict_measurement returns z_pred and S without mutating state",
     REQUIRE(ukf.state().isApprox(state_before, 1e-15));
     REQUIRE(ukf.covariance().isApprox(cov_before, 1e-15));
 }
+
+TEST_CASE("predict_measurement is idempotent (no hidden state)",
+          "[ukf][predict_measurement]") {
+    Ukf ukf;
+    Ukf::StateVec x;
+    x << 0.5, -1.0, 2.0, 0.3, -0.1, 0.05, 0.7;
+    Ukf::StateMat P = Ukf::StateMat::Identity() * 0.3;
+    ukf.init(x, P);
+
+    const auto pm1 = ukf.predict_measurement();
+    const auto pm2 = ukf.predict_measurement();
+
+    REQUIRE(pm1.z_pred.isApprox(pm2.z_pred, 1e-15));
+    REQUIRE(pm1.S.isApprox(pm2.S, 1e-15));
+}
