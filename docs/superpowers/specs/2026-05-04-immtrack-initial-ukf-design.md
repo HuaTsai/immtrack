@@ -26,7 +26,7 @@
 
 ## Architecture Overview
 
-```
+```text
 +-----------------------------------------------------+
 |              UKF<Motion, Obs>                       |
 |  Pure numerical core. Template specialization fully |
@@ -47,7 +47,7 @@ Static polymorphism via templates. Trait methods are inlined at compile time. Ei
 
 ## File Layout
 
-```
+```text
 cpp/include/immtrack/
   ukf.hpp                  # Main UKF template (full unscented transform)
   motion.hpp               # PosVxyzYawCV (replaces CV3D / CTRV3D)
@@ -165,7 +165,7 @@ UKF detects whether a trait provides `weighted_mean` / `residual` via C++20 `req
 
 ### Sigma points (Merwe scaled)
 
-```
+```text
 λ = α² · (N + κ) − N
 χ_0 = μ
 χ_i     = μ + (√((N + λ) · Σ))_i        for i = 1..N
@@ -176,7 +176,7 @@ Square root via Eigen `LLT` (lower triangular). On `LLT` failure, fall back to `
 
 Weights:
 
-```
+```text
 W_m_0 = λ / (N + λ)
 W_c_0 = λ / (N + λ) + (1 − α² + β)
 W_m_i = W_c_i = 1 / (2 (N + λ))    for i = 1..2N
@@ -186,7 +186,7 @@ Defaults: `α = 1e−3`, `β = 2`, `κ = 0`. Configurable via UKF constructor.
 
 ### Predict
 
-```
+```text
 Inputs: μ, Σ, dt
 Outputs: μ', Σ'
 
@@ -200,7 +200,7 @@ Outputs: μ', Σ'
 
 ### Update
 
-```
+```text
 Inputs: μ, Σ, measurement z
 Outputs: μ', Σ', NIS (scalar)
 
