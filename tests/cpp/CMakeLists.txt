@@ -22,3 +22,4 @@ function(immtrack_add_test name)
 endfunction()
 
 # Tests are added in subsequent tasks. The list grows as features land.
+immtrack_add_test(test_angle)
