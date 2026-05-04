@@ -9,16 +9,16 @@ namespace immtrack {
 // caller fills it with the GT track ID (for ground truth) or the
 // tracker-assigned ID (for predictions).
 struct BoundingBox {
-    double x = 0.0;
-    double y = 0.0;
-    double z = 0.0;
-    double l = 0.0;
-    double w = 0.0;
-    double h = 0.0;
-    double rot = 0.0;
-    std::string class_name;
-    double score = 0.0;
-    int track_id = -1;
+  double x = 0.0;
+  double y = 0.0;
+  double z = 0.0;
+  double l = 0.0;
+  double w = 0.0;
+  double h = 0.0;
+  double rot = 0.0;
+  std::string class_name;
+  double score = 0.0;
+  int track_id = -1;
 };
 
 }  // namespace immtrack

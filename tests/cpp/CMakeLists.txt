@@ -10,7 +10,7 @@ list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
 
 function(immtrack_add_test name)
-    add_executable(${name} ${name}.cpp)
+    add_executable(${name} ${name}.cc)
     target_link_libraries(${name} PRIVATE
         immtrack_core
         Catch2::Catch2WithMain
