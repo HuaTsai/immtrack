@@ -4,64 +4,58 @@
 
 #include <Eigen/Core>
 
+#include <immtrack/detail/angle.hpp>
+
 namespace immtrack {
 
-// State layout shared by all 3D-bbox motion models:
-//   [x, y, z, yaw, l, w, h, ...dynamic]
-// First 7 dims are the bbox (matches BBox3DObs::h via head<7>()).
-// Remaining dims are model-specific velocity / rate / etc.
+// Constant-velocity model in 3D Cartesian space with passive yaw.
+// state = [x, y, z, vx, vy, vz, theta]
+struct PosVxyzYawCV {
+    static constexpr int N = 7;
+    using State = Eigen::Matrix<double, N, 1>;
+    using Cov = Eigen::Matrix<double, N, N>;
 
-// Constant velocity in 3D:
-//   state = [x, y, z, yaw, l, w, h, vx, vy, vz]   (N = 10)
-struct CV3D {
-  static constexpr int N = 10;
-  using State = Eigen::Matrix<double, N, 1>;
-  using Cov = Eigen::Matrix<double, N, N>;
-
-  static State predict(const State &x, double dt) {
-    State next = x;
-    next(0) += x(7) * dt;
-    next(1) += x(8) * dt;
-    next(2) += x(9) * dt;
-    return next;
-  }
-
-  static Cov process_noise(double dt) {
-    // TODO: tune properly. Placeholder identity-scaled.
-    return Cov::Identity() * dt;
-  }
-};
-
-// Constant turn-rate / velocity in 3D:
-//   state = [x, y, z, yaw, l, w, h, v, yaw_rate, vz]   (N = 10)
-struct CTRV3D {
-  static constexpr int N = 10;
-  using State = Eigen::Matrix<double, N, 1>;
-  using Cov = Eigen::Matrix<double, N, N>;
-
-  static State predict(const State &x, double dt) {
-    const double yaw = x(3);
-    const double v = x(7);
-    const double yaw_rate = x(8);
-    const double vz = x(9);
-
-    State next = x;
-    if (std::abs(yaw_rate) < 1e-6) {
-      next(0) += v * std::cos(yaw) * dt;
-      next(1) += v * std::sin(yaw) * dt;
-    } else {
-      const double yaw_next = yaw + yaw_rate * dt;
-      next(0) += (v / yaw_rate) * (std::sin(yaw_next) - std::sin(yaw));
-      next(1) += (v / yaw_rate) * (-std::cos(yaw_next) + std::cos(yaw));
+    static State predict(const State& x, double dt) {
+        State next = x;
+        next(0) += x(3) * dt;
+        next(1) += x(4) * dt;
+        next(2) += x(5) * dt;
+        return next;
     }
-    next(2) += vz * dt;
-    next(3) += yaw_rate * dt;
-    return next;
-  }
 
-  static Cov process_noise(double dt) {
-    return Cov::Identity() * dt;
-  }
+    static Cov process_noise(double dt) {
+        return Cov::Identity() * dt;
+    }
+
+    template <int K>
+    static State weighted_mean(
+        const Eigen::Matrix<double, N, K>& sigmas,
+        const Eigen::Matrix<double, K, 1>& weights) {
+        State mean = sigmas.col(0);
+        mean.template head<6>().setZero();
+        for (int i = 0; i < K; ++i) {
+            mean.template head<6>() +=
+                weights(i) *
+                (sigmas.col(i).template head<6>() -
+                 sigmas.col(0).template head<6>());
+        }
+        mean.template head<6>() += sigmas.col(0).template head<6>();
+
+        const double theta0 = sigmas(6, 0);
+        double theta_delta = 0.0;
+        for (int i = 0; i < K; ++i) {
+            theta_delta +=
+                weights(i) * detail::wrap_angle(sigmas(6, i) - theta0);
+        }
+        mean(6) = detail::wrap_angle(theta0 + theta_delta);
+        return mean;
+    }
+
+    static State residual(const State& a, const State& b) {
+        State r = a - b;
+        r(6) = detail::wrap_angle(r(6));
+        return r;
+    }
 };
 
 }  // namespace immtrack

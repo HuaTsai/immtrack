@@ -1,6 +1,6 @@
 # immtrack Initial UKF Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace the v0.1 placeholder UKF scaffold with a full unscented transform implementation specialized for `PosVxyzYawCV` motion (7D state `[x, y, z, vx, vy, vz, θ]`) and `PosYawObs` measurement (4D `[x, y, z, θ]`), exposed as `UkfPosVxyzYawCV` in Python.
 
@@ -51,7 +51,7 @@ Set up the build system to support C++ tests without breaking the existing Pytho
 - Modify: `CMakeLists.txt`
 - Create: `tests/cpp/CMakeLists.txt`
 
-- [ ] **Step 1: Replace top-level `CMakeLists.txt`**
+- [x] **Step 1: Replace top-level `CMakeLists.txt`**
 
 ```cmake
 cmake_minimum_required(VERSION 3.15)
@@ -85,7 +85,7 @@ if(IMMTRACK_BUILD_TESTS)
 endif()
 ```
 
-- [ ] **Step 2: Create `tests/cpp/CMakeLists.txt`**
+- [x] **Step 2: Create `tests/cpp/CMakeLists.txt`**
 
 ```cmake
 include(FetchContent)
@@ -114,7 +114,7 @@ endfunction()
 # Tests are added in subsequent tasks. The list grows as features land.
 ```
 
-- [ ] **Step 3: Verify Python build still works (regression check)**
+- [x] **Step 3: Verify Python build still works (regression check)**
 
 Run:
 
@@ -126,7 +126,7 @@ uv run pytest tests/python -q
 
 Expected: build succeeds, existing imports still work, all 5 existing pytest cases pass. (We have not changed any runtime code yet.)
 
-- [ ] **Step 4: Verify test build infrastructure configures**
+- [x] **Step 4: Verify test build infrastructure configures**
 
 Run:
 
@@ -136,7 +136,7 @@ cmake -S . -B build-test -DIMMTRACK_BUILD_TESTS=ON
 
 Expected: configure succeeds. No tests yet, but Catch2 should download. Check `build-test/_deps/catch2-src/` exists.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add CMakeLists.txt tests/cpp/CMakeLists.txt
@@ -161,7 +161,7 @@ Foundation utility used by trait residual implementations. Pure function, no dep
 - Create: `tests/cpp/test_angle.cpp`
 - Modify: `tests/cpp/CMakeLists.txt`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/cpp/test_angle.cpp`:
 
@@ -205,7 +205,7 @@ TEST_CASE("wrap_angle: NaN propagates to NaN", "[angle]") {
 
 Add `immtrack_add_test(test_angle)` to `tests/cpp/CMakeLists.txt`.
 
-- [ ] **Step 2: Run test to verify it fails (header missing)**
+- [x] **Step 2: Run test to verify it fails (header missing)**
 
 Run:
 
@@ -216,7 +216,7 @@ cmake --build build-test --target test_angle
 
 Expected: compile error — `immtrack/detail/angle.hpp: No such file or directory`.
 
-- [ ] **Step 3: Implement `wrap_angle`**
+- [x] **Step 3: Implement `wrap_angle`**
 
 Create `cpp/include/immtrack/detail/angle.hpp`:
 
@@ -237,7 +237,7 @@ inline double wrap_angle(double a) noexcept {
 }  // namespace immtrack::detail
 ```
 
-- [ ] **Step 4: Run test, verify pass**
+- [x] **Step 4: Run test, verify pass**
 
 Run:
 
@@ -248,7 +248,7 @@ ctest --test-dir build-test -R test_angle --output-on-failure
 
 Expected: 5 test cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cpp/include/immtrack/detail/angle.hpp \
@@ -272,7 +272,7 @@ Custom Catch2 matchers used by sigma point and UKF tests. Adding them up front s
 - Create: `tests/cpp/test_matchers_smoke.cpp` (deleted at end of this task)
 - Modify: `tests/cpp/CMakeLists.txt`
 
-- [ ] **Step 1: Write a smoke test that uses both matchers**
+- [x] **Step 1: Write a smoke test that uses both matchers**
 
 Create `tests/cpp/test_matchers_smoke.cpp`:
 
@@ -310,7 +310,7 @@ TEST_CASE("IsPsd fails on negative-definite", "[matchers]") {
 
 Add `immtrack_add_test(test_matchers_smoke)` to `tests/cpp/CMakeLists.txt`.
 
-- [ ] **Step 2: Run, verify failure (header missing)**
+- [x] **Step 2: Run, verify failure (header missing)**
 
 ```bash
 cmake --build build-test --target test_matchers_smoke
@@ -318,7 +318,7 @@ cmake --build build-test --target test_matchers_smoke
 
 Expected: compile error — `eigen_matchers.hpp` not found.
 
-- [ ] **Step 3: Implement matchers**
+- [x] **Step 3: Implement matchers**
 
 Create `tests/cpp/helpers/eigen_matchers.hpp`:
 
@@ -391,7 +391,7 @@ class IsPsd : public Catch::Matchers::MatcherGenericBase {
 }  // namespace immtrack::test
 ```
 
-- [ ] **Step 4: Run smoke test, verify pass**
+- [x] **Step 4: Run smoke test, verify pass**
 
 ```bash
 cmake --build build-test --target test_matchers_smoke
@@ -400,7 +400,7 @@ ctest --test-dir build-test -R test_matchers_smoke --output-on-failure
 
 Expected: 4 test cases pass.
 
-- [ ] **Step 5: Delete the smoke test** (it was just to validate the matchers; later tests will exercise them implicitly)
+- [x] **Step 5: Delete the smoke test** (it was just to validate the matchers; later tests will exercise them implicitly)
 
 ```bash
 rm tests/cpp/test_matchers_smoke.cpp
@@ -408,7 +408,7 @@ rm tests/cpp/test_matchers_smoke.cpp
 
 Remove the `immtrack_add_test(test_matchers_smoke)` line from `tests/cpp/CMakeLists.txt`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/cpp/helpers/eigen_matchers.hpp tests/cpp/CMakeLists.txt
@@ -430,7 +430,7 @@ Merwe scaled sigma point generator with LLT/LDLT fallback, plus the weights stru
 - Create: `tests/cpp/test_sigma_points.cpp`
 - Modify: `tests/cpp/CMakeLists.txt`
 
-- [ ] **Step 1: Create `errors.hpp`**
+- [x] **Step 1: Create `errors.hpp`**
 
 Create `cpp/include/immtrack/errors.hpp`:
 
@@ -459,7 +459,7 @@ class NumericalError : public std::runtime_error {
 }  // namespace immtrack
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Create `tests/cpp/test_sigma_points.cpp`:
 
@@ -562,7 +562,7 @@ TEST_CASE("UnscentedWeights row sums equal 1 for mean weights", "[sigma]") {
 
 Add `immtrack_add_test(test_sigma_points)` to `tests/cpp/CMakeLists.txt`.
 
-- [ ] **Step 3: Run, verify failures (header missing)**
+- [x] **Step 3: Run, verify failures (header missing)**
 
 ```bash
 cmake --build build-test --target test_sigma_points 2>&1 | head -20
@@ -570,7 +570,7 @@ cmake --build build-test --target test_sigma_points 2>&1 | head -20
 
 Expected: compile error — `immtrack/detail/sigma_points.hpp` not found.
 
-- [ ] **Step 4: Implement sigma points helper**
+- [x] **Step 4: Implement sigma points helper**
 
 Create `cpp/include/immtrack/detail/sigma_points.hpp`:
 
@@ -668,7 +668,7 @@ Eigen::Matrix<double, N, 2 * N + 1> generate_sigma_points(
 }  // namespace immtrack::detail
 ```
 
-- [ ] **Step 5: Run, verify pass**
+- [x] **Step 5: Run, verify pass**
 
 ```bash
 cmake --build build-test --target test_sigma_points
@@ -677,7 +677,7 @@ ctest --test-dir build-test -R test_sigma_points --output-on-failure
 
 Expected: all test cases pass (4 dimensions × 1 template case + 4 single cases = 8 cases).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cpp/include/immtrack/errors.hpp \
@@ -711,7 +711,7 @@ This task atomically renames `CV3D` / `CTRV3D` / `BBox3DObs` / `CvBBox3DUKF` / `
 - Create: `tests/cpp/test_traits.cpp`
 - Modify: `tests/cpp/CMakeLists.txt`
 
-- [ ] **Step 1: Replace `cpp/include/immtrack/motion.hpp`**
+- [x] **Step 1: Replace `cpp/include/immtrack/motion.hpp`**
 
 ```cpp
 #pragma once
@@ -781,7 +781,7 @@ struct PosVxyzYawCV {
 }  // namespace immtrack
 ```
 
-- [ ] **Step 2: Replace `cpp/include/immtrack/observations.hpp`**
+- [x] **Step 2: Replace `cpp/include/immtrack/observations.hpp`**
 
 ```cpp
 #pragma once
@@ -847,7 +847,7 @@ struct PosYawObs {
 }  // namespace immtrack
 ```
 
-- [ ] **Step 3: Update `cpp/include/immtrack/ukf.hpp` constructor signature**
+- [x] **Step 3: Update `cpp/include/immtrack/ukf.hpp` constructor signature**
 
 The Task 7 and 8 will fully implement `predict` and `update`. For now, the constructor and accessor surface need to match the new spec; predict propagates the mean only (placeholder) and update throws.
 
@@ -915,7 +915,7 @@ class UKF {
 }  // namespace immtrack
 ```
 
-- [ ] **Step 4: Replace `bindings/_core.cc`**
+- [x] **Step 4: Replace `bindings/_core.cc`**
 
 ```cpp
 #include <pybind11/eigen.h>
@@ -975,7 +975,7 @@ PYBIND11_MODULE(_core, m) {
 }
 ```
 
-- [ ] **Step 5: Replace `src/immtrack/__init__.py`**
+- [x] **Step 5: Replace `src/immtrack/__init__.py`**
 
 ```python
 from immtrack._core import (
@@ -993,7 +993,7 @@ __all__ = [
 ]
 ```
 
-- [ ] **Step 6: Replace `tests/python/test_smoke.py`**
+- [x] **Step 6: Replace `tests/python/test_smoke.py`**
 
 ```python
 import numpy as np
@@ -1062,7 +1062,7 @@ def test_exception_classes_importable() -> None:
     assert issubclass(NumericalError, RuntimeError)
 ```
 
-- [ ] **Step 7: Add `tests/cpp/test_traits.cpp`**
+- [x] **Step 7: Add `tests/cpp/test_traits.cpp`**
 
 Verify trait shapes at compile time so any future regression that changes a constexpr is caught immediately.
 
@@ -1116,7 +1116,7 @@ TEST_CASE("PosYawObs::h projects position+yaw", "[traits]") {
 
 Add `immtrack_add_test(test_traits)` to `tests/cpp/CMakeLists.txt`.
 
-- [ ] **Step 8: Build and run all tests**
+- [x] **Step 8: Build and run all tests**
 
 ```bash
 # Python build first
@@ -1133,7 +1133,7 @@ Expected:
 - Python: 7 tests pass.
 - C++: 3 test executables run, all cases pass.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add cpp/include/immtrack/motion.hpp \
@@ -1168,7 +1168,7 @@ Replace the placeholder `UKF::predict` with the real sigma-point propagation.
 - Create: `tests/cpp/test_ukf_predict.cpp`
 - Modify: `tests/cpp/CMakeLists.txt`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/cpp/test_ukf_predict.cpp`:
 
@@ -1278,7 +1278,7 @@ TEST_CASE("Predict covariance grows by process_noise after one step",
 
 Add `immtrack_add_test(test_ukf_predict)` to `tests/cpp/CMakeLists.txt`.
 
-- [ ] **Step 2: Run, verify failures**
+- [x] **Step 2: Run, verify failures**
 
 ```bash
 cmake --build build-test --target test_ukf_predict
@@ -1287,7 +1287,7 @@ ctest --test-dir build-test -R test_ukf_predict --output-on-failure
 
 Expected: most tests fail (predict is still placeholder mean-only — covariance test fails, theta wrap test fails, linear motion test may pass coincidentally).
 
-- [ ] **Step 3: Implement full predict in `ukf.hpp`**
+- [x] **Step 3: Implement full predict in `ukf.hpp`**
 
 Replace the body of `UKF::predict` (and remove the placeholder) so the file becomes:
 
@@ -1375,7 +1375,7 @@ class UKF {
 }  // namespace immtrack
 ```
 
-- [ ] **Step 4: Run all C++ tests**
+- [x] **Step 4: Run all C++ tests**
 
 ```bash
 cmake --build build-test --target test_angle test_sigma_points test_traits test_ukf_predict
@@ -1384,7 +1384,7 @@ ctest --test-dir build-test --output-on-failure
 
 Expected: all 6 predict cases pass plus prior tests still pass.
 
-- [ ] **Step 5: Run Python smoke tests (regression)**
+- [x] **Step 5: Run Python smoke tests (regression)**
 
 ```bash
 rm -rf build/ && uv sync
@@ -1393,7 +1393,7 @@ uv run pytest tests/python -q
 
 Expected: all 7 smoke tests pass (predict semantics unchanged from caller's view; the Python `test_predict_advances_position_under_cv` exercises the new sigma-point path).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cpp/include/immtrack/ukf.hpp \
@@ -1425,7 +1425,7 @@ Replace the throwing placeholder with the unscented update step. `update()` retu
 - Modify: `tests/cpp/CMakeLists.txt`
 - Modify: `tests/python/test_smoke.py`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/cpp/test_ukf_update.cpp`:
 
@@ -1545,7 +1545,7 @@ TEST_CASE("NIS is non-negative", "[update]") {
 
 Add `immtrack_add_test(test_ukf_update)` to `tests/cpp/CMakeLists.txt`.
 
-- [ ] **Step 2: Run, verify failures**
+- [x] **Step 2: Run, verify failures**
 
 ```bash
 cmake --build build-test --target test_ukf_update
@@ -1554,7 +1554,7 @@ ctest --test-dir build-test -R test_ukf_update --output-on-failure
 
 Expected: all 5 cases fail (every test calls `update`, which currently throws `std::runtime_error`).
 
-- [ ] **Step 3: Implement update in `ukf.hpp`**
+- [x] **Step 3: Implement update in `ukf.hpp`**
 
 Replace the placeholder body of `update()` with the full unscented update. The full file becomes:
 
@@ -1683,7 +1683,7 @@ class UKF {
 }  // namespace immtrack
 ```
 
-- [ ] **Step 4: Update Python smoke test to exercise update**
+- [x] **Step 4: Update Python smoke test to exercise update**
 
 Replace `test_update_not_yet_implemented_in_this_commit` with:
 
@@ -1703,7 +1703,7 @@ def test_update_returns_nis_and_shrinks_cov() -> None:
 
 Place it where the previous "not yet implemented" test was in `tests/python/test_smoke.py`.
 
-- [ ] **Step 5: Run all tests**
+- [x] **Step 5: Run all tests**
 
 ```bash
 cmake --build build-test
@@ -1718,7 +1718,7 @@ Expected:
 - C++: 5 test_ukf_update cases pass + all prior tests still pass.
 - Python: 7 smoke tests pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add cpp/include/immtrack/ukf.hpp \
@@ -1753,7 +1753,7 @@ End-to-end check that the install path, Python API, and exception mapping all wo
 - Modify: `cpp/include/immtrack/ukf.hpp` (header docstring only)
 - Modify: `tests/python/test_smoke.py` (add exception mapping test)
 
-- [ ] **Step 1: Add Python test for exception mapping**
+- [x] **Step 1: Add Python test for exception mapping**
 
 Append to `tests/python/test_smoke.py`:
 
@@ -1772,7 +1772,7 @@ def test_invalid_argument_is_value_error() -> None:
         f.predict(dt=-1.0)
 ```
 
-- [ ] **Step 2: Add header docstring summarizing the trait contract**
+- [x] **Step 2: Add header docstring summarizing the trait contract**
 
 Modify the comment block at the top of `cpp/include/immtrack/ukf.hpp` (just above the `template <class Motion, class Obs>` line). Replace any existing comment with:
 
@@ -1822,7 +1822,7 @@ Modify the comment block at the top of `cpp/include/immtrack/ukf.hpp` (just abov
 // downstream gating / IMM likelihood.
 ```
 
-- [ ] **Step 3: Run the full test suite**
+- [x] **Step 3: Run the full test suite**
 
 ```bash
 # C++
@@ -1836,7 +1836,7 @@ uv run pytest tests/python -v
 
 Expected: every C++ test case passes, all Python tests pass.
 
-- [ ] **Step 4: Verify the documented Python usage example actually runs**
+- [x] **Step 4: Verify the documented Python usage example actually runs**
 
 Run the spec's example as an inline check:
 
@@ -1862,7 +1862,7 @@ PY
 
 Expected: prints state ~= [0.1*something_small, 0, 0, ~1.0, 0, 0, 0], NIS >= 0, N = 7, M = 4. No exceptions.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add cpp/include/immtrack/ukf.hpp tests/python/test_smoke.py

@@ -23,3 +23,7 @@ endfunction()
 
 # Tests are added in subsequent tasks. The list grows as features land.
 immtrack_add_test(test_angle)
+immtrack_add_test(test_sigma_points)
+immtrack_add_test(test_traits)
+immtrack_add_test(test_ukf_predict)
+immtrack_add_test(test_ukf_update)
