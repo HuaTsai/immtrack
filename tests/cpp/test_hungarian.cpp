@@ -75,11 +75,35 @@ TEST_CASE("Hungarian: rectangular 3x2", "[hungarian]") {
 
 TEST_CASE("Hungarian: all cells infeasible still returns valid pairs",
           "[hungarian]") {
-    constexpr double INF = 1e9;
     Eigen::MatrixXd cost(2, 2);
-    cost << INF, INF,
-            INF, INF;
+    cost << immtrack::detail::kInfeasible, immtrack::detail::kInfeasible,
+            immtrack::detail::kInfeasible, immtrack::detail::kInfeasible;
     const auto a = immtrack::detail::hungarian(cost);
     REQUIRE(a.size() == 2);
-    // Caller is responsible for filtering >= INF pairs.
+    // Caller is responsible for filtering >= kInfeasible pairs.
+}
+
+TEST_CASE("Hungarian: rectangular with one fully-infeasible row demonstrates "
+          "caller filter pattern",
+          "[hungarian]") {
+    Eigen::MatrixXd cost(2, 3);
+    cost << immtrack::detail::kInfeasible, immtrack::detail::kInfeasible,
+            immtrack::detail::kInfeasible,
+            1.0, 2.0, 3.0;
+
+    const auto raw = immtrack::detail::hungarian(cost);
+    REQUIRE(raw.size() == 2);
+
+    // Caller filter: drop pairs with cost >= kInfeasible.
+    std::vector<std::pair<int, int>> feasible;
+    for (const auto& [r, c] : raw) {
+        if (cost(r, c) < immtrack::detail::kInfeasible) {
+            feasible.push_back({r, c});
+        }
+    }
+
+    REQUIRE(feasible.size() == 1);
+    REQUIRE(feasible[0].first == 1);
+    // Optimal feasible col for row 1 is column 0 (cost 1.0).
+    REQUIRE(feasible[0].second == 0);
 }

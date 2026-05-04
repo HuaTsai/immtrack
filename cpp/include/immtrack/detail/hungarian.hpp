@@ -2,19 +2,38 @@
 
 #include <Eigen/Core>
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <limits>
 #include <utility>
 #include <vector>
 
 namespace immtrack::detail {
 
-// Rectangular Hungarian (Jonker-Volgenant style) minimum-cost assignment.
+// Sentinel used by callers (BBoxTracker, AMOTA) to mark infeasible
+// (gated-out) assignments in the cost matrix. The Hungarian solver
+// itself treats this as any other large finite cost; callers must
+// filter pairs whose cost >= kInfeasible from the returned vector.
+inline constexpr double kInfeasible = 1e9;
+
+// Rectangular Hungarian (Jonker-Volgenant) minimum-cost assignment.
+//
 // Returns vector of (row, col) pairs of size = min(rows, cols).
 //
-// Complexity: O(n^3) where n = max(rows, cols) after square padding.
-// Padding fill value is 0.0 (caller should ensure real costs are finite
-// and non-negative for the unpadded portion; INFEASIBLE cells should use
-// a large constant and be filtered post-call).
+// Preconditions:
+//   - All cost cells must be finite and non-negative. Negative costs
+//     produce undefined assignments because rectangular inputs are
+//     padded internally with 0.0 to a square matrix; a negative real
+//     cell would be preferred over the zero-padded slack, corrupting
+//     the result.
+//   - Cells representing forbidden assignments should be set to a
+//     large sentinel >= kInfeasible (see below). The solver will
+//     still return a pair for such cells; callers must filter.
+//
+// Complexity: O(n^3) where n = max(rows, cols).
+//
+// Note: For empty inputs (0 rows or 0 cols) the function returns
+// an empty assignment.
 inline std::vector<std::pair<int, int>> hungarian(
     const Eigen::MatrixXd& cost) {
     const int rows = static_cast<int>(cost.rows());
@@ -22,6 +41,15 @@ inline std::vector<std::pair<int, int>> hungarian(
     if (rows == 0 || cols == 0) {
         return {};
     }
+
+#ifndef NDEBUG
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            assert(std::isfinite(cost(i, j)) && cost(i, j) >= 0.0 &&
+                   "hungarian: cost cells must be finite and non-negative");
+        }
+    }
+#endif
 
     const int n = std::max(rows, cols);
     // Pad to n x n with 0.0 in slack cells (1-indexed: a[i][j] for i,j in [1,n]).
