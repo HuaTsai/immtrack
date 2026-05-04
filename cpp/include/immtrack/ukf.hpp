@@ -141,6 +141,10 @@ class UKF {
         return PredictedMeasurement{c.z_pred, S_sym};
     }
 
+    static MeasVec observation_residual(const MeasVec& a, const MeasVec& b) {
+        return Obs::residual(a, b);
+    }
+
     const StateVec& state() const noexcept { return x_; }
     const StateMat& covariance() const noexcept { return P_; }
 
