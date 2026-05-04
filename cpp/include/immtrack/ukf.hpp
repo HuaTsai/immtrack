@@ -138,6 +138,37 @@ class UKF {
         return innovation.dot(S_ldlt.solve(innovation));
     }
 
+    struct PredictedMeasurement {
+        MeasVec z_pred;
+        Eigen::Matrix<double, M, M> S;
+    };
+
+    // Compute predicted measurement and innovation covariance without
+    // mutating state. Used for gating / cost computation in tracking.
+    PredictedMeasurement predict_measurement() const {
+        const auto sigmas =
+            detail::generate_sigma_points<N>(x_, P_, weights_.lambda);
+
+        Eigen::Matrix<double, M, K> z_sigmas;
+        for (int i = 0; i < K; ++i) {
+            z_sigmas.col(i) = Obs::h(sigmas.col(i));
+        }
+
+        const MeasVec z_pred =
+            Obs::template weighted_mean<K>(z_sigmas, weights_.mean_weights);
+
+        using MeasMat = Eigen::Matrix<double, M, M>;
+        MeasMat S = MeasMat::Zero();
+        for (int i = 0; i < K; ++i) {
+            const MeasVec dz = Obs::residual(z_sigmas.col(i), z_pred);
+            S.noalias() += weights_.cov_weights(i) * dz * dz.transpose();
+        }
+        S += Obs::measurement_noise();
+        S = 0.5 * (S + S.transpose());
+
+        return PredictedMeasurement{z_pred, S};
+    }
+
     const StateVec& state() const noexcept { return x_; }
     const StateMat& covariance() const noexcept { return P_; }
 
