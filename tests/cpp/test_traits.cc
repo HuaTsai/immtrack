@@ -42,18 +42,23 @@ TEST_CASE("PosVxyzYawCV: process_noise zero on yaw_rate row/col", "[traits]") {
   }
 }
 
-TEST_CASE("PosYawObs trait shape", "[traits]") {
+TEST_CASE("PosYawObs: shape and concept conformance", "[traits]") {
+  STATIC_REQUIRE(immtrack::ObservationModel<PosYawObs>);
+  STATIC_REQUIRE(immtrack::HasObsJacobian<PosYawObs>);
+  STATIC_REQUIRE(immtrack::LinearObs<PosYawObs>);
+  STATIC_REQUIRE(std::is_same_v<PosYawObs::StateSpace, XYZVxVyVzYawYawRateSpace>);
+  STATIC_REQUIRE(immtrack::StateSpace<PosYawObs::MeasSpace>);
   STATIC_REQUIRE(PosYawObs::M == 4);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::Meas, Eigen::Matrix<double, 4, 1>>);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::Noise, Eigen::Matrix<double, 4, 4>>);
 }
 
-TEST_CASE("PosYawObs::h projects position+yaw", "[traits]") {
+TEST_CASE("PosYawObs::h projects (x, y, z, yaw) from 8D state", "[traits]") {
   PosVxyzYawCV::State x;
-  x << 1.0, 2.0, 3.0, 0.5, 0.0, 0.0, 1.57, 0.0;
+  x << 1.0, 2.0, 3.0, 0.5, -0.5, 0.0, 0.7, 0.3;
   const auto z = PosYawObs::h(x);
-  REQUIRE(z(0) == 1.0);
-  REQUIRE(z(1) == 2.0);
-  REQUIRE(z(2) == 3.0);
-  REQUIRE(z(3) == 1.57);
+  REQUIRE(z(0) == Catch::Approx(1.0));
+  REQUIRE(z(1) == Catch::Approx(2.0));
+  REQUIRE(z(2) == Catch::Approx(3.0));
+  REQUIRE(z(3) == Catch::Approx(0.7));
 }

@@ -1,53 +1,54 @@
 #pragma once
 
 #include <Eigen/Core>
-#include <cmath>
-#include <immtrack/detail/angle.hpp>
+#include <immtrack/concepts.hpp>
+#include <immtrack/detail/euclidean.hpp>
+#include <immtrack/state_spaces.hpp>
 
 namespace immtrack {
 
-// 3D position + yaw observation: measurement = [x, y, z, theta].
-struct PosYawObs {
-  static constexpr int M = 4;
-  using Meas = Eigen::Matrix<double, M, 1>;
-  using Noise = Eigen::Matrix<double, M, M>;
+// Measurement space: [x, y, z, yaw]. Yaw at idx 3 wraps to (-pi, pi].
+using PosYawMeasSpace = detail::EuclideanWithAngles<4, /*yaw=*/3>;
 
-  template <class State>
-  static Meas h(const State &x) {
+// Observation: project (x, y, z, yaw) out of the 8D ground-vehicle state.
+struct PosYawObs {
+  using StateSpace = XYZVxVyVzYawYawRateSpace;
+  using MeasSpace  = PosYawMeasSpace;
+  using Meas  = MeasSpace::State;
+  using Noise = MeasSpace::Cov;
+  using HMat  = ObsJacMat<PosYawObs>;  // 4 x 8
+  static constexpr int M = MeasSpace::state_dim;
+
+  static Meas h(const StateSpace::State& x) noexcept {
     Meas z;
-    z(0) = x(0);
-    z(1) = x(1);
-    z(2) = x(2);
-    z(3) = x(6);
+    z(0) = x(StateSpace::X);
+    z(1) = x(StateSpace::Y);
+    z(2) = x(StateSpace::Z);
+    z(3) = x(StateSpace::YAW);
     return z;
   }
 
-  static Noise measurement_noise() { return Noise::Identity(); }
+  static Noise measurement_noise() noexcept { return Noise::Identity(); }
 
-  template <int K>
-  static Meas weighted_mean(const Eigen::Matrix<double, M, K> &sigmas,
-                            const Eigen::Matrix<double, K, 1> &weights) {
-    Meas mean = sigmas.col(0);
-    mean.template head<3>().setZero();
-    for (int i = 0; i < K; ++i) {
-      mean.template head<3>() +=
-          weights(i) * (sigmas.col(i).template head<3>() - sigmas.col(0).template head<3>());
-    }
-    mean.template head<3>() += sigmas.col(0).template head<3>();
-
-    const double theta0 = sigmas(3, 0);
-    double theta_delta = 0.0;
-    for (int i = 0; i < K; ++i) {
-      theta_delta += weights(i) * detail::wrap_angle(sigmas(3, i) - theta0);
-    }
-    mean(3) = detail::wrap_angle(theta0 + theta_delta);
-    return mean;
+  static HMat H_jacobian(const StateSpace::State&) noexcept { return H_matrix(); }
+  static HMat H_matrix() noexcept {
+    HMat H = HMat::Zero();
+    H(0, StateSpace::X)   = 1.0;
+    H(1, StateSpace::Y)   = 1.0;
+    H(2, StateSpace::Z)   = 1.0;
+    H(3, StateSpace::YAW) = 1.0;
+    return H;
   }
 
-  static Meas residual(const Meas &a, const Meas &b) {
-    Meas r = a - b;
-    r(3) = detail::wrap_angle(r(3));
-    return r;
+  // ===== UKF compatibility shims (delegate to MeasSpace) =====
+  template <int K>
+  static Meas weighted_mean(const Eigen::Matrix<double, M, K>& sigmas,
+                             const Eigen::Matrix<double, K, 1>& weights) noexcept {
+    return MeasSpace::template weighted_mean<K>(sigmas, weights);
+  }
+
+  static Meas residual(const Meas& a, const Meas& b) noexcept {
+    return MeasSpace::boxminus(a, b);
   }
 };
 
