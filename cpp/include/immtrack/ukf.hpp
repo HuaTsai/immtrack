@@ -2,55 +2,42 @@
 
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
+#include <immtrack/concepts.hpp>
 #include <immtrack/detail/sigma_points.hpp>
 #include <immtrack/errors.hpp>
 
 namespace immtrack {
 
-// Unscented Kalman Filter parameterised by Motion and Obs traits.
+// Unscented Kalman Filter constrained on the MotionModel and ObservationModel
+// concepts defined in immtrack/concepts.hpp.
 //
-// Trait contract (compile-time):
+// Concept contract (compile-time):
+//   Motion must satisfy MotionModel<Motion>:
+//     - exposes Motion::StateSpace (satisfies StateSpace concept)
+//     - static State predict(const State&, Scalar dt)
+//     - static Cov   process_noise(Scalar dt)
+//     - static State weighted_mean<K>(sigmas, weights)
+//     - static State residual(a, b)
 //
-//   class Motion {
-//     static constexpr int N;
-//     using State = Eigen::Matrix<double, N, 1>;
-//     using Cov   = Eigen::Matrix<double, N, N>;
-//
-//     static State predict(const State &x, double dt);
-//     static Cov   process_noise(double dt);
-//
-//     template <int K>
-//     static State weighted_mean(
-//         const Eigen::Matrix<double, N, K> &sigmas,
-//         const Eigen::Matrix<double, K, 1> &weights);
-//
-//     static State residual(const State &a, const State &b);
-//   };
-//
-//   class Obs {
-//     static constexpr int M;
-//     using Meas  = Eigen::Matrix<double, M, 1>;
-//     using Noise = Eigen::Matrix<double, M, M>;
-//
-//     template <class State> static Meas h(const State &x);
-//     static Noise measurement_noise();
-//
-//     template <int K>
-//     static Meas weighted_mean(
-//         const Eigen::Matrix<double, M, K> &sigmas,
-//         const Eigen::Matrix<double, K, 1> &weights);
-//
-//     static Meas residual(const Meas &a, const Meas &b);
-//   };
+//   Obs must satisfy ObservationModel<Obs>:
+//     - exposes Obs::StateSpace (must equal Motion::StateSpace)
+//     - exposes Obs::MeasSpace  (satisfies StateSpace concept)
+//     - static MeasSpace::State h(const StateSpace::State&)
+//     - static MeasSpace::Cov   measurement_noise()
+//     - static MeasSpace::State weighted_mean<K>(sigmas, weights)
+//     - static MeasSpace::State residual(a, b)
 //
 // Default constructor: alpha=1e-3, beta=2, kappa=0 (Merwe scaled).
 // Default state: mu = 0, Sigma = I.
 // update(z) returns NIS (normalized innovation squared).
-template <class Motion, class Obs>
+template <MotionModel Motion, ObservationModel Obs>
+  requires std::same_as<typename Motion::StateSpace, typename Obs::StateSpace>
 class UKF {
  public:
-  static constexpr int N = Motion::N;
-  static constexpr int M = Obs::M;
+  using StateSpace = typename Motion::StateSpace;
+  using MeasSpace  = typename Obs::MeasSpace;
+  static constexpr int N = StateSpace::state_dim;
+  static constexpr int M = MeasSpace::state_dim;
   static constexpr int K = 2 * N + 1;
   using StateVec = Eigen::Matrix<double, N, 1>;
   using StateMat = Eigen::Matrix<double, N, N>;
@@ -173,4 +160,15 @@ class UKF {
   }
 };
 
+}  // namespace immtrack
+
+// Compile-time proof that UKF<PosVxyzYawCV, PosYawObs> satisfies the Filter
+// concept. The motion/observation headers are included here (not at the top of
+// this file) to avoid a circular-include cycle: ukf.hpp -> motion.hpp ->
+// state_spaces.hpp is fine, but motion.hpp already works without ukf.hpp.
+#include <immtrack/motion.hpp>
+#include <immtrack/observations.hpp>
+namespace immtrack {
+static_assert(Filter<UKF<PosVxyzYawCV, PosYawObs>>,
+              "UKF<PosVxyzYawCV, PosYawObs> must satisfy Filter concept");
 }  // namespace immtrack

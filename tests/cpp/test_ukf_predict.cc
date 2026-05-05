@@ -1,6 +1,7 @@
 #include <Eigen/Core>
 #include <catch2/catch_test_macros.hpp>
 #include <cmath>
+#include <immtrack/concepts.hpp>
 #include <immtrack/errors.hpp>
 #include <immtrack/motion.hpp>
 #include <immtrack/observations.hpp>
@@ -19,21 +20,21 @@ using Filter = UKF<PosVxyzYawCV, PosYawObs>;
 TEST_CASE("Predict on linear motion matches plain motion model", "[predict]") {
   Filter ukf;
   Filter::StateVec x0;
-  x0 << 0.0, 0.0, 0.0, 1.0, 2.0, 0.5, 0.0;
+  x0 << 0.0, 0.0, 0.0, 1.0, 2.0, 0.5, 0.0, 0.0;
   Filter::StateMat P0 = Filter::StateMat::Identity() * 0.1;
   ukf.init(x0, P0);
 
   ukf.predict(0.5);
 
   Filter::StateVec expected;
-  expected << 0.5, 1.0, 0.25, 1.0, 2.0, 0.5, 0.0;
+  expected << 0.5, 1.0, 0.25, 1.0, 2.0, 0.5, 0.0, 0.0;
   REQUIRE_THAT(ukf.state(), IsApprox(expected, 1e-9));
 }
 
 TEST_CASE("Predict with dt = 0 leaves state approximately unchanged", "[predict]") {
   Filter ukf;
   Filter::StateVec x0;
-  x0 << 1.0, 2.0, 3.0, 0.1, 0.2, 0.3, 0.4;
+  x0 << 1.0, 2.0, 3.0, 0.1, 0.2, 0.3, 0.4, 0.0;
   Filter::StateMat P0 = Filter::StateMat::Identity() * 0.5;
   ukf.init(x0, P0);
 
@@ -62,6 +63,11 @@ TEST_CASE("Predict preserves PSD over many cycles", "[predict]") {
   REQUIRE_THAT(ukf.covariance(), IsPsd());
 }
 
+TEST_CASE("UKF<PosVxyzYawCV, PosYawObs> satisfies Filter concept", "[ukf]") {
+  using F = immtrack::UKF<immtrack::PosVxyzYawCV, immtrack::PosYawObs>;
+  STATIC_REQUIRE(immtrack::Filter<F>);
+}
+
 TEST_CASE("Predict handles theta crossing +pi via circular mean", "[predict]") {
   Filter ukf;
   Filter::StateVec x0 = Filter::StateVec::Zero();
@@ -85,10 +91,9 @@ TEST_CASE("Predict covariance grows by process_noise after one step", "[predict]
 
   ukf.predict(0.1);
 
-  Filter::StateMat F = Filter::StateMat::Identity();
-  F(0, 3) = 0.1;
-  F(1, 4) = 0.1;
-  F(2, 5) = 0.1;
-  Filter::StateMat expected = F * P0 * F.transpose() + Filter::StateMat::Identity() * 0.1;
+  // Build expected via linearised propagation F*P0*F' + Q using the motion
+  // model's own F_matrix and process_noise (CWNA closed-form).
+  Filter::StateMat F = PosVxyzYawCV::F_matrix(0.1);
+  Filter::StateMat expected = F * P0 * F.transpose() + PosVxyzYawCV::process_noise(0.1);
   REQUIRE_THAT(ukf.covariance(), IsApprox(expected, 1e-7));
 }

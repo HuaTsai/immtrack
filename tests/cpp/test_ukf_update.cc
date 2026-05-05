@@ -23,7 +23,7 @@ TEST_CASE(
     "[update]") {
   Filter ukf;
   Filter::StateVec x0;
-  x0 << 1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 0.5;
+  x0 << 1.0, 2.0, 3.0, 0.0, 0.0, 0.0, 0.5, 0.0;
   Filter::StateMat P0 = Filter::StateMat::Identity() * 0.5;
   ukf.init(x0, P0);
 

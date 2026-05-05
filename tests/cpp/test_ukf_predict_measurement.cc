@@ -12,7 +12,7 @@ TEST_CASE("predict_measurement returns z_pred and S without mutating state",
           "[ukf][predict_measurement]") {
   Ukf ukf;
   Ukf::StateVec x;
-  x << 1.0, 2.0, 3.0, 0.5, 0.0, 0.0, 0.1;
+  x << 1.0, 2.0, 3.0, 0.5, 0.0, 0.0, 0.1, 0.0;
   Ukf::StateMat P = Ukf::StateMat::Identity() * 0.5;
   ukf.init(x, P);
 
@@ -41,7 +41,7 @@ TEST_CASE("predict_measurement returns z_pred and S without mutating state",
 TEST_CASE("predict_measurement is idempotent (no hidden state)", "[ukf][predict_measurement]") {
   Ukf ukf;
   Ukf::StateVec x;
-  x << 0.5, -1.0, 2.0, 0.3, -0.1, 0.05, 0.7;
+  x << 0.5, -1.0, 2.0, 0.3, -0.1, 0.05, 0.7, 0.0;
   Ukf::StateMat P = Ukf::StateMat::Identity() * 0.3;
   ukf.init(x, P);
 
