@@ -39,32 +39,51 @@ design so that:
 
 ## The Four Axes
 
-| Axis              | Concept                                                      | Examples (concrete types)        |
-| ----------------- | ------------------------------------------------------------ | -------------------------------- |
-| 1. State geometry | `StateSpace`                                                 | `XYZVxVyVzYawYawRateSpace` (8D)  |
-| 2. Dynamics       | `MotionModel` (refines: `HasMotionJacobian`, `LinearMotion`) | `CV`, `CTRV`                     |
-| 3. Measurement    | `ObservationModel` (refines: `HasObsJacobian`, `LinearObs`)  | `PosYawObs`                      |
-| 4. Estimator      | `Filter`                                                     | `KF`, `EKF`, `UKF`, `IMM<Fs...>` |
+| Axis              | Concept                                                                  | Examples (concrete types)        |
+| ----------------- | ------------------------------------------------------------------------ | -------------------------------- |
+| 1. State geometry | `Manifold`                                                               | `XYZVxVyVzYawYawRateSpace` (8D)  |
+| 2. Dynamics       | `Motion` (siblings: `LinearizableMotion`, `LinearMotion`)                | `CV`, `CTRV`                     |
+| 3. Measurement    | `Observation` (siblings: `LinearizableObservation`, `LinearObservation`) | `PosYawObs`                      |
+| 4. Estimator      | `Filter`                                                                 | `KF`, `EKF`, `UKF`, `IMM<Fs...>` |
 
-The concepts form a refinement hierarchy:
+`Manifold` is the concept satisfied by anything with `boxplus` / `boxminus` —
+both the state space and the measurement space of a filter are Manifolds. The
+concrete types that satisfy it are conventionally named with a `Space` suffix
+(`XYZVxVyVzYawYawRateSpace`, `PosYawMeasSpace`) and exposed via the
+`StateSpace` / `MeasSpace` member typedefs of `Motion` / `Observation` /
+`Filter`.
+
+The concepts form a sibling refinement (not a single chain — `LinearMotion`
+and `LinearizableMotion` are independent, since KF uses only `F_matrix` and
+EKF uses only `F_jacobian`):
 
 ```text
-StateSpace        (boxplus / boxminus)
+Manifold          (boxplus / boxminus)               — any space the filter touches
   |
-  +-- MotionModel        (predict, process_noise)
-  |     |
-  |     +-- HasMotionJacobian   (+ F_jacobian)
-  |           |
-  |           +-- LinearMotion       (+ F_matrix)
+  +-- (every concrete StateSpace / MeasSpace satisfies Manifold)
   |
-  +-- ObservationModel   (h, measurement_noise)
-        |
-        +-- HasObsJacobian    (+ H_jacobian)
-              |
-              +-- LinearObs        (+ H_matrix)
+  +-- Motion                          (predict, process_noise)   — UKF / CKF / IF
+  |     ├── LinearizableMotion        (+ F_jacobian)             — EKF
+  |     └── LinearMotion              (+ F_matrix)               — KF
+  |
+  +-- Observation                     (h, measurement_noise)     — UKF / CKF
+        ├── LinearizableObservation   (+ H_jacobian)             — EKF
+        └── LinearObservation         (+ H_matrix)               — KF
 
 Filter   (predict, update, state, covariance) — uniform external API
 ```
+
+Naming rationale: each name describes a **mathematical property** (linearizable
+at a point / linear everywhere). The siblings double as the natural eligibility
+gate for each filter family, so a missing member produces a compile error
+pointing at the exact concept that wasn't satisfied.
+
+Why sibling and not a chain (`LinearMotion ⊂ LinearizableMotion`)? KF's
+formulas (`x = F·x`, `P = F·P·Fᵀ + Q`) never call `F_jacobian`, so a refinement
+chain would force every linear model to ship a trivial `F_jacobian = F_matrix`
+shim that no current filter uses. A model that wants both EKF and KF
+compatibility can satisfy both concepts independently by exposing both
+members.
 
 A reference implementation of the concept layer plus a working
 `LinearKF<CV, XYObs>` lives at `ref/concept_kf_demo.hpp` /
@@ -147,12 +166,12 @@ maintain.
 
 ```text
 cpp/include/immtrack/
-  concepts.hpp                 NEW   StateSpace / MotionModel / ObservationModel / Filter
+  concepts.hpp                 NEW   Manifold / Motion / Observation / Filter
   state_spaces.hpp             NEW   XYZVxVyVzYawYawRateSpace
   detail/euclidean.hpp         NEW   EuclideanWithAngles<Dim, AngleIdx...>
   motion.hpp                   MOD   CV (rewritten over StateSpace), CTRV (new)
   observations.hpp             MOD   PosYawObs (rewritten over StateSpace)
-  ukf.hpp                      MOD   UKF<Motion, Obs> + concept constraints
+  ukf.hpp                      MOD   UKF<Mot, Obs> + concept constraints
   imm.hpp                      NEW   IMM<Filter...>
   tracker.hpp                  MOD   BBoxTracker accepts any Filter (IMM included)
 ```
@@ -165,8 +184,8 @@ namespace immtrack {
 template <class F>
 concept Filter =
     requires { typename F::StateSpace; typename F::MeasSpace; } &&
-    StateSpace<typename F::StateSpace> &&
-    StateSpace<typename F::MeasSpace>  &&
+    Manifold<typename F::StateSpace> &&
+    Manifold<typename F::MeasSpace>  &&
     requires(F& f, double dt,
              const typename F::MeasSpace::State& z,
              const F& cf) {
@@ -253,8 +272,8 @@ already has hardcoded lifecycle logic that can stay.
    - Motion: `CV` over that StateSpace (yaw_rate frozen via process noise).
 4. Refactor `PosYawObs` to express its `StateSpace` / `MeasSpace`
    typedefs over the new types.
-5. Refactor `UKF` to constrain its parameters via `MotionModel` /
-   `ObservationModel`.
+5. Refactor `UKF` to constrain its parameters via `Motion` /
+   `Observation`.
 6. Add `static_assert(Filter<UKF<CV, PosYawObs>>)` in `ukf.hpp`.
 7. Existing tests pass with one-dimension state extension (yaw_rate
    initialised to 0 with high P0 entry).
@@ -306,7 +325,7 @@ YAW_RATE)` to a small value during Phase 1; CTRV in Phase 2 sets
   workloads; monitor.
 - **Concept compile-time error message quality.** Subsumption errors
   can still be noisy if concepts are not staircased. Mitigation: per
-  the demo, concepts are layered (`MotionModel` → `HasMotionJacobian`
+  the demo, concepts are layered (`Motion` → `LinearizableMotion`
   → `LinearMotion`) so failures point at the exact missing member.
 - **IMM mixing of yaw across modes.** When CTRV updates yaw, mixing
   with CV (which leaves yaw untouched between predicts) needs the
@@ -326,6 +345,108 @@ YAW_RATE)` to a small value during Phase 1; CTRV in Phase 2 sets
   defaults inside `IMM` constructor, or require user to pass them?
   Leaning toward "require — there is no good default for a generic
   motion-mode mix."
+
+## Future Extensions (Deferred)
+
+The current `Motion` / `Observation` chain assumes **additive Gaussian noise**
+(`process_noise(dt) -> Cov`, `measurement_noise() -> Cov`) and **deterministic
+forward dynamics** (`predict(x, dt) -> State`). That is a deliberate scope
+choice for the MVP — it covers KF / EKF / UKF / CKF / Information Filter / IMM,
+which are the families this project actually plans to ship.
+
+Filter families that need _more_ than this — sample-based filters, particle
+flow, continuous-time SDE filters — are **not implemented now**, and the
+concept layer does not yet model their requirements. They are sketched here so
+the design space is visible the next time someone evaluates whether to extend.
+
+### Why deferred
+
+- No concrete plan in any phase commits to PF / EnKF / particle flow.
+- The MVP filter axis (KF, EKF, UKF, IMM) sits entirely in the
+  Gaussian-additive regime — adding sampling / likelihood concepts now would be
+  YAGNI.
+- Each new family also needs runtime infrastructure (RNGs, ensemble buffers,
+  resampling) that has its own scope; the concepts are the cheap part.
+
+### Sketch (when triggered)
+
+These are sibling refinements of `Motion` / `Observation`, not extra rungs on
+the existing chain. Adding them does **not** require changing existing
+concepts or filters.
+
+```text
+Motion
+├── LinearizableMotion       (EKF)             [shipped]
+│   └── LinearMotion         (KF)              [shipped]
+├── SamplableMotion          (PF / EnKF / Bootstrap PF)         [future]
+└── SDEMotion                (Continuous-Discrete EKF)          [future]
+
+Observation
+├── LinearizableObservation  (EKF)             [shipped]
+│   └── LinearObservation    (KF)              [shipped]
+├── LikelihoodObservation    (PF)                                [future]
+│   └── DifferentiableLikelihood  (Particle Flow / Daum-Huang)  [future]
+└── ...
+```
+
+Concept signatures (illustrative — not part of the current header):
+
+```cpp
+// Forward sampling — needed when noise is non-additive or non-Gaussian.
+template <class M>
+concept SamplableMotion = Motion<M> && requires(State x, Scalar dt, RNG& rng) {
+  { M::sample(x, dt, rng) } -> std::same_as<State>;
+};
+
+// Likelihood evaluation — replaces the Gaussian innovation assumption.
+template <class O>
+concept LikelihoodObservation = Observation<O> && requires(MeasState z, State x) {
+  { O::log_likelihood(z, x) } -> std::convertible_to<Scalar>;
+};
+
+// Continuous-time dynamics — drift + diffusion of an SDE.
+template <class M>
+concept SDEMotion = requires(State x) {
+  requires Manifold<typename M::StateSpace>;
+  { M::drift(x) }     -> /* tangent */;
+  { M::diffusion(x) } -> /* tangent x noise_dim */;
+};
+
+// Gradient of log-likelihood — needed by particle flow / Daum-Huang.
+template <class O>
+concept DifferentiableLikelihood = LikelihoodObservation<O> && requires(MeasState z, State x) {
+  { O::log_likelihood_grad(z, x) } -> std::same_as<Tangent>;
+};
+```
+
+### Filter family mapping
+
+| Filter family                    | Required concept(s)                                 | Status                |
+| -------------------------------- | --------------------------------------------------- | --------------------- |
+| KF                               | `LinearMotion` + `LinearObservation`                | shipped               |
+| EKF / IEKF                       | `LinearizableMotion` + `LinearizableObservation`    | shipped               |
+| UKF / CKF / SRUKF                | `Motion` + `Observation`                            | shipped               |
+| Information Filter / Extended IF | (same as KF / EKF in dual form)                     | shipped               |
+| RTS / URTS smoother              | (same as the matching forward filter)               | shipped               |
+| GSF / MHT / IMM                  | (a bank of the above; concept unchanged)            | shipped (IMM Phase 2) |
+| Bootstrap / Aux PF               | `SamplableMotion` + `LikelihoodObservation`         | **deferred**          |
+| EnKF                             | `SamplableMotion` + `Observation`                   | **deferred**          |
+| Particle Flow / Daum-Huang       | `SamplableMotion` + `DifferentiableLikelihood`      | **deferred**          |
+| Continuous-Discrete EKF          | `SDEMotion` + `LinearizableObservation`             | **deferred**          |
+| Rao-Blackwellized PF             | mix of `SamplableMotion` + `LinearMotion` sub-state | **deferred**          |
+
+### Triggers for revisiting
+
+Reopen this section if any of the following becomes a real requirement:
+
+- Heavy-tailed / multi-modal posterior tracking (typical justification for PF).
+- Sensor models with non-Gaussian noise that can't be reasonably moment-matched.
+- Continuous-time process models (e.g. tightly-coupled IMU integration where
+  discretisation is the dominant error source).
+- Geophysical / large-state-space tracking where ensemble methods (EnKF) beat
+  Gaussian filters.
+
+Until then this stays a paper design.
 
 ## References
 
