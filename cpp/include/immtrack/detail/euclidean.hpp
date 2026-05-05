@@ -15,20 +15,20 @@ namespace immtrack::detail {
 // state_spaces.hpp (e.g. XYZVxVyVzYawYawRateSpace = EuclideanWithAngles<8, 6>).
 template <int Dim, int... AngleIdx>
 struct EuclideanWithAngles {
-  using Scalar  = double;
-  using State   = Eigen::Matrix<double, Dim, 1>;
+  using Scalar = double;
+  using State = Eigen::Matrix<double, Dim, 1>;
   using Tangent = Eigen::Matrix<double, Dim, 1>;
-  using Cov     = Eigen::Matrix<double, Dim, Dim>;
-  static constexpr int state_dim   = Dim;
+  using Cov = Eigen::Matrix<double, Dim, Dim>;
+  static constexpr int state_dim = Dim;
   static constexpr int tangent_dim = Dim;
 
-  static State boxplus(const State& x, const Tangent& dx) noexcept {
+  static State boxplus(const State &x, const Tangent &dx) noexcept {
     State r = x + dx;
     ((r(AngleIdx) = wrap_angle(r(AngleIdx))), ...);
     return r;
   }
 
-  static Tangent boxminus(const State& a, const State& b) noexcept {
+  static Tangent boxminus(const State &a, const State &b) noexcept {
     Tangent r = a - b;
     ((r(AngleIdx) = wrap_angle(r(AngleIdx))), ...);
     return r;
@@ -40,8 +40,8 @@ struct EuclideanWithAngles {
   //     anchored at sigmas.col(0)'s value (numerically stable for
   //     small spreads typical of UKF sigma points).
   template <int K>
-  static State weighted_mean(const Eigen::Matrix<double, Dim, K>& sigmas,
-                              const Eigen::Matrix<double, K, 1>& weights) noexcept {
+  static State weighted_mean(const Eigen::Matrix<double, Dim, K> &sigmas,
+                             const Eigen::Matrix<double, K, 1> &weights) noexcept {
     State mean = State::Zero();
     // Plain weighted sum over all dims.
     for (int i = 0; i < K; ++i) {
@@ -55,10 +55,9 @@ struct EuclideanWithAngles {
 
  private:
   template <int K>
-  static double intrinsic_angle_mean_(
-      const Eigen::Matrix<double, Dim, K>& sigmas,
-      const Eigen::Matrix<double, K, 1>& weights,
-      int idx) noexcept {
+  static double intrinsic_angle_mean_(const Eigen::Matrix<double, Dim, K> &sigmas,
+                                      const Eigen::Matrix<double, K, 1> &weights,
+                                      int idx) noexcept {
     const double anchor = sigmas(idx, 0);
     double delta = 0.0;
     for (int i = 0; i < K; ++i) {

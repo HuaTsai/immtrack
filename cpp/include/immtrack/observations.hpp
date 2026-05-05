@@ -13,13 +13,13 @@ using PosYawMeasSpace = detail::EuclideanWithAngles<4, /*yaw=*/3>;
 // Observation: project (x, y, z, yaw) out of the 8D ground-vehicle state.
 struct PosYawObs {
   using StateSpace = XYZVxVyVzYawYawRateSpace;
-  using MeasSpace  = PosYawMeasSpace;
-  using Meas  = MeasSpace::State;
+  using MeasSpace = PosYawMeasSpace;
+  using Meas = MeasSpace::State;
   using Noise = MeasSpace::Cov;
-  using HMat  = ObsJacMat<PosYawObs>;  // 4 x 8
+  using HMat = ObsJacMat<PosYawObs>;  // 4 x 8
   static constexpr int M = MeasSpace::state_dim;
 
-  static Meas h(const StateSpace::State& x) noexcept {
+  static Meas h(const StateSpace::State &x) noexcept {
     Meas z;
     z(0) = x(StateSpace::X);
     z(1) = x(StateSpace::Y);
@@ -30,26 +30,24 @@ struct PosYawObs {
 
   static Noise measurement_noise() noexcept { return Noise::Identity(); }
 
-  static HMat H_jacobian(const StateSpace::State&) noexcept { return H_matrix(); }
+  static HMat H_jacobian(const StateSpace::State &) noexcept { return H_matrix(); }
   static HMat H_matrix() noexcept {
     HMat H = HMat::Zero();
-    H(0, StateSpace::X)   = 1.0;
-    H(1, StateSpace::Y)   = 1.0;
-    H(2, StateSpace::Z)   = 1.0;
+    H(0, StateSpace::X) = 1.0;
+    H(1, StateSpace::Y) = 1.0;
+    H(2, StateSpace::Z) = 1.0;
     H(3, StateSpace::YAW) = 1.0;
     return H;
   }
 
   // ===== UKF compatibility shims (delegate to MeasSpace) =====
   template <int K>
-  static Meas weighted_mean(const Eigen::Matrix<double, M, K>& sigmas,
-                             const Eigen::Matrix<double, K, 1>& weights) noexcept {
+  static Meas weighted_mean(const Eigen::Matrix<double, M, K> &sigmas,
+                            const Eigen::Matrix<double, K, 1> &weights) noexcept {
     return MeasSpace::template weighted_mean<K>(sigmas, weights);
   }
 
-  static Meas residual(const Meas& a, const Meas& b) noexcept {
-    return MeasSpace::boxminus(a, b);
-  }
+  static Meas residual(const Meas &a, const Meas &b) noexcept { return MeasSpace::boxminus(a, b); }
 };
 
 }  // namespace immtrack

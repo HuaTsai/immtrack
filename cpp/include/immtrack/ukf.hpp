@@ -31,11 +31,11 @@ namespace immtrack {
 // Default state: mu = 0, Sigma = I.
 // update(z) returns NIS (normalized innovation squared).
 template <MotionModel Motion, ObservationModel Obs>
-  requires std::same_as<typename Motion::StateSpace, typename Obs::StateSpace>
+requires std::same_as<typename Motion::StateSpace, typename Obs::StateSpace>
 class UKF {
  public:
   using StateSpace = typename Motion::StateSpace;
-  using MeasSpace  = typename Obs::MeasSpace;
+  using MeasSpace = typename Obs::MeasSpace;
   static constexpr int N = StateSpace::state_dim;
   static constexpr int M = MeasSpace::state_dim;
   static constexpr int K = 2 * N + 1;

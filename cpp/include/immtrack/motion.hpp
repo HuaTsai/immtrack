@@ -14,10 +14,10 @@ namespace immtrack {
 struct PosVxyzYawCV {
   using StateSpace = XYZVxVyVzYawYawRateSpace;
   using State = StateSpace::State;
-  using Cov   = StateSpace::Cov;
+  using Cov = StateSpace::Cov;
   static constexpr int N = StateSpace::state_dim;
 
-  static State predict(const State& x, double dt) noexcept {
+  static State predict(const State &x, double dt) noexcept {
     State next = x;
     next(StateSpace::X) += x(StateSpace::VX) * dt;
     next(StateSpace::Y) += x(StateSpace::VY) * dt;
@@ -49,7 +49,7 @@ struct PosVxyzYawCV {
   }
 
   // Linear -> jacobian == matrix. Both exposed to satisfy LinearMotion.
-  static Cov F_jacobian(const State&, double dt) noexcept { return F_matrix(dt); }
+  static Cov F_jacobian(const State &, double dt) noexcept { return F_matrix(dt); }
   static Cov F_matrix(double dt) noexcept {
     Cov F = Cov::Identity();
     F(StateSpace::X, StateSpace::VX) = dt;
@@ -63,12 +63,12 @@ struct PosVxyzYawCV {
   // Task 6 may switch UKF to call StateSpace directly; until then these
   // shims keep the existing call sites working unchanged.
   template <int K>
-  static State weighted_mean(const Eigen::Matrix<double, N, K>& sigmas,
-                              const Eigen::Matrix<double, K, 1>& weights) noexcept {
+  static State weighted_mean(const Eigen::Matrix<double, N, K> &sigmas,
+                             const Eigen::Matrix<double, K, 1> &weights) noexcept {
     return StateSpace::template weighted_mean<K>(sigmas, weights);
   }
 
-  static State residual(const State& a, const State& b) noexcept {
+  static State residual(const State &a, const State &b) noexcept {
     return StateSpace::boxminus(a, b);
   }
 };

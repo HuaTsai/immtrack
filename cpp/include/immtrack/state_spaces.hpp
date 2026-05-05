@@ -9,13 +9,13 @@ namespace immtrack {
 // `yaw` (idx 6) wraps to (-pi, pi]; `yaw_rate` is plain Euclidean.
 struct XYZVxVyVzYawYawRateSpace : detail::EuclideanWithAngles<8, /*yaw=*/6> {
   enum : int {
-    X        = 0,
-    Y        = 1,
-    Z        = 2,
-    VX       = 3,
-    VY       = 4,
-    VZ       = 5,
-    YAW      = 6,
+    X = 0,
+    Y = 1,
+    Z = 2,
+    VX = 3,
+    VY = 4,
+    VZ = 5,
+    YAW = 6,
     YAW_RATE = 7,
   };
 };
