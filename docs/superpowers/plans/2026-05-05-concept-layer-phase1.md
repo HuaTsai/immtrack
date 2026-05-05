@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Promote the 4-axis concept design (StateSpace / MotionModel / ObservationModel / Filter) from `ref/concept_kf_demo.hpp` into the production headers, and grow the existing 7D state (`x,y,z,vx,vy,vz,yaw`) by one dimension to 8D (`+ yaw_rate`) so that Phase 2's IMM with CTRV has a place to write yaw rate. No IMM in this phase.
+**Goal:** Promote the 4-axis concept design (StateSpace / Motion / Observation / Filter) from `ref/concept_kf_demo.hpp` into the production headers, and grow the existing 7D state (`x,y,z,vx,vy,vz,yaw`) by one dimension to 8D (`+ yaw_rate`) so that Phase 2's IMM with CTRV has a place to write yaw rate. No IMM in this phase.
 
 **Architecture:** Header-only C++20 library. New files: `concepts.hpp`, `detail/euclidean.hpp`, `state_spaces.hpp`. The `EuclideanWithAngles<Dim, AngleIdx...>` template generates StateSpace types with angle-aware `boxplus`/`boxminus`/`weighted_mean`, eliminating per-state-space hand-coding. Existing `PosVxyzYawCV`, `PosYawObs`, `UKF`, `Track`, `BBoxTracker` are refactored in-place to satisfy the new concepts; numeric equivalence with the existing tracker is the success criterion.
 
@@ -14,25 +14,25 @@
 
 ## File Structure
 
-| File                                        | Action | Responsibility                                                                                                                          |
-| ------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `cpp/include/immtrack/concepts.hpp`         | Create | `StateSpace`, `MotionModel`, `HasMotionJacobian`, `LinearMotion`, `ObservationModel`, `HasObsJacobian`, `LinearObs`, `Filter` concepts. |
-| `cpp/include/immtrack/detail/euclidean.hpp` | Create | `EuclideanWithAngles<Dim, AngleIdx...>` providing `boxplus`, `boxminus`, `weighted_mean`.                                               |
-| `cpp/include/immtrack/state_spaces.hpp`     | Create | `XYZVxVyVzYawYawRateSpace` (8D, yaw at index 6, yaw_rate at index 7).                                                                   |
-| `cpp/include/immtrack/motion.hpp`           | Modify | `PosVxyzYawCV` gains `StateSpace` typedef, grows to 8D; predict leaves `yaw_rate` unchanged; process_noise zero on yaw_rate row/col.    |
-| `cpp/include/immtrack/observations.hpp`     | Modify | `PosYawObs` gains `StateSpace` and `MeasSpace` typedefs.                                                                                |
-| `cpp/include/immtrack/ukf.hpp`              | Modify | Concept-constrained on Motion/Obs; `static_assert(Filter<UKF<PosVxyzYawCV, PosYawObs>>)`.                                               |
-| `cpp/include/immtrack/tracker.hpp`          | Modify | `Track::Track(...)` — 8D init (yaw_rate=0, P0(7,7)=small variance).                                                                     |
-| `bindings/_core.cc`                         | Modify | No code change expected (templated on `Filter`); verify `Filter::N` propagates as 8.                                                    |
-| `tests/cpp/test_concepts.cc`                | Create | static_assert tests for each concept against stub types.                                                                                |
-| `tests/cpp/test_euclidean.cc`               | Create | `EuclideanWithAngles` boxplus/boxminus/weighted_mean unit tests.                                                                        |
-| `tests/cpp/test_state_spaces.cc`            | Create | `XYZVxVyVzYawYawRateSpace` static_assert + accessor enum tests.                                                                         |
-| `tests/cpp/test_traits.cc`                  | Modify | Update N from 7 to 8; add `StateSpace`/`MeasSpace` typedef checks.                                                                      |
-| `tests/cpp/test_ukf_predict.cc`             | Modify | Update fixtures to 8D state vectors.                                                                                                    |
-| `tests/cpp/test_ukf_update.cc`              | Modify | Same.                                                                                                                                   |
-| `tests/cpp/test_ukf_predict_measurement.cc` | Modify | Same.                                                                                                                                   |
-| `tests/cpp/test_bbox_tracker.cc`            | Modify | Same; verify Track init handles 8D.                                                                                                     |
-| `tests/cpp/CMakeLists.txt`                  | Modify | Register `test_concepts`, `test_euclidean`, `test_state_spaces`.                                                                        |
+| File                                        | Action | Responsibility                                                                                                                                  |
+| ------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cpp/include/immtrack/concepts.hpp`         | Create | `StateSpace`, `Motion`, `LinearizableMotion`, `LinearMotion`, `Observation`, `LinearizableObservation`, `LinearObservation`, `Filter` concepts. |
+| `cpp/include/immtrack/detail/euclidean.hpp` | Create | `EuclideanWithAngles<Dim, AngleIdx...>` providing `boxplus`, `boxminus`, `weighted_mean`.                                                       |
+| `cpp/include/immtrack/state_spaces.hpp`     | Create | `XYZVxVyVzYawYawRateSpace` (8D, yaw at index 6, yaw_rate at index 7).                                                                           |
+| `cpp/include/immtrack/motion.hpp`           | Modify | `PosVxyzYawCV` gains `StateSpace` typedef, grows to 8D; predict leaves `yaw_rate` unchanged; process_noise zero on yaw_rate row/col.            |
+| `cpp/include/immtrack/observations.hpp`     | Modify | `PosYawObs` gains `StateSpace` and `MeasSpace` typedefs.                                                                                        |
+| `cpp/include/immtrack/ukf.hpp`              | Modify | Concept-constrained on Motion/Obs; `static_assert(Filter<UKF<PosVxyzYawCV, PosYawObs>>)`.                                                       |
+| `cpp/include/immtrack/tracker.hpp`          | Modify | `Track::Track(...)` — 8D init (yaw_rate=0, P0(7,7)=small variance).                                                                             |
+| `bindings/_core.cc`                         | Modify | No code change expected (templated on `Filter`); verify `Filter::N` propagates as 8.                                                            |
+| `tests/cpp/test_concepts.cc`                | Create | static_assert tests for each concept against stub types.                                                                                        |
+| `tests/cpp/test_euclidean.cc`               | Create | `EuclideanWithAngles` boxplus/boxminus/weighted_mean unit tests.                                                                                |
+| `tests/cpp/test_state_spaces.cc`            | Create | `XYZVxVyVzYawYawRateSpace` static_assert + accessor enum tests.                                                                                 |
+| `tests/cpp/test_traits.cc`                  | Modify | Update N from 7 to 8; add `StateSpace`/`MeasSpace` typedef checks.                                                                              |
+| `tests/cpp/test_ukf_predict.cc`             | Modify | Update fixtures to 8D state vectors.                                                                                                            |
+| `tests/cpp/test_ukf_update.cc`              | Modify | Same.                                                                                                                                           |
+| `tests/cpp/test_ukf_predict_measurement.cc` | Modify | Same.                                                                                                                                           |
+| `tests/cpp/test_bbox_tracker.cc`            | Modify | Same; verify Track init handles 8D.                                                                                                             |
+| `tests/cpp/CMakeLists.txt`                  | Modify | Register `test_concepts`, `test_euclidean`, `test_state_spaces`.                                                                                |
 
 ---
 
@@ -146,20 +146,23 @@ struct StubObs {
 }  // namespace
 
 TEST_CASE("StateSpace concept", "[concepts]") {
-  STATIC_REQUIRE(immtrack::StateSpace<StubSpace>);
-  STATIC_REQUIRE(immtrack::StateSpace<StubMeasSpace>);
+  STATIC_REQUIRE(immtrack::Manifold<StubSpace>);
+  STATIC_REQUIRE(immtrack::Manifold<StubMeasSpace>);
 }
 
-TEST_CASE("MotionModel refinement", "[concepts]") {
-  STATIC_REQUIRE(immtrack::MotionModel<StubMotion>);
-  STATIC_REQUIRE(immtrack::HasMotionJacobian<StubMotion>);
+TEST_CASE("Motion concepts", "[concepts]") {
+  STATIC_REQUIRE(immtrack::Motion<StubMotion>);
+  STATIC_REQUIRE(immtrack::LinearizableMotion<StubMotion>);
   STATIC_REQUIRE(immtrack::LinearMotion<StubMotion>);
+  // Sibling check: a Linear-only stub should NOT satisfy LinearizableMotion.
+  // (Add `StubLinearOnlyMotion` / `StubLinearizableOnlyMotion` mirror stubs
+  // exposing only F_matrix or only F_jacobian to pin this down.)
 }
 
-TEST_CASE("ObservationModel refinement", "[concepts]") {
-  STATIC_REQUIRE(immtrack::ObservationModel<StubObs>);
-  STATIC_REQUIRE(immtrack::HasObsJacobian<StubObs>);
-  STATIC_REQUIRE(immtrack::LinearObs<StubObs>);
+TEST_CASE("Observation concepts", "[concepts]") {
+  STATIC_REQUIRE(immtrack::Observation<StubObs>);
+  STATIC_REQUIRE(immtrack::LinearizableObservation<StubObs>);
+  STATIC_REQUIRE(immtrack::LinearObservation<StubObs>);
 }
 ```
 
@@ -209,42 +212,44 @@ concept StateSpace = requires(typename S::State   x,
   { S::boxminus(a, b) } -> std::same_as<typename S::Tangent>;
 };
 
-// 2. MotionModel — dynamics over a StateSpace.
+// 2. Motion — dynamics over a StateSpace.
 template <class M>
-concept MotionModel =
+concept Motion =
     requires(const typename M::StateSpace::State& x,
              typename M::StateSpace::Scalar       dt) {
-      requires StateSpace<typename M::StateSpace>;
+      requires Manifold<typename M::StateSpace>;
       { M::predict(x, dt) }    -> std::same_as<typename M::StateSpace::State>;
       { M::process_noise(dt) } -> std::same_as<typename M::StateSpace::Cov>;
     };
 
 template <class M>
-concept HasMotionJacobian =
-    MotionModel<M> &&
+concept LinearizableMotion =
     requires(const typename M::StateSpace::State& x,
              typename M::StateSpace::Scalar       dt) {
+      requires Motion<M>;
       { M::F_jacobian(x, dt) } -> std::same_as<typename M::StateSpace::Cov>;
     };
 
+// LinearMotion is a sibling of LinearizableMotion (not a refinement) — KF
+// uses F_matrix only, never F_jacobian.
 template <class M>
 concept LinearMotion =
-    HasMotionJacobian<M> &&
     requires(typename M::StateSpace::Scalar dt) {
+      requires Motion<M>;
       { M::F_matrix(dt) } -> std::same_as<typename M::StateSpace::Cov>;
     };
 
-// 3. ObservationModel — projection from StateSpace into MeasSpace.
+// 3. Observation — projection from StateSpace into MeasSpace.
 template <class O>
 using ObsJacMat = Eigen::Matrix<typename O::StateSpace::Scalar,
                                 O::MeasSpace::tangent_dim,
                                 O::StateSpace::tangent_dim>;
 
 template <class O>
-concept ObservationModel =
+concept Observation =
     requires(const typename O::StateSpace::State& x) {
-      requires StateSpace<typename O::StateSpace>;
-      requires StateSpace<typename O::MeasSpace>;
+      requires Manifold<typename O::StateSpace>;
+      requires Manifold<typename O::MeasSpace>;
       requires std::same_as<typename O::StateSpace::Scalar,
                             typename O::MeasSpace::Scalar>;
       { O::h(x) } -> std::same_as<typename O::MeasSpace::State>;
@@ -252,16 +257,17 @@ concept ObservationModel =
     };
 
 template <class O>
-concept HasObsJacobian =
-    ObservationModel<O> &&
+concept LinearizableObservation =
     requires(const typename O::StateSpace::State& x) {
+      requires Observation<O>;
       { O::H_jacobian(x) } -> std::same_as<ObsJacMat<O>>;
     };
 
+// Sibling of LinearizableObservation — KF uses H_matrix only.
 template <class O>
-concept LinearObs =
-    HasObsJacobian<O> &&
+concept LinearObservation =
     requires {
+      requires Observation<O>;
       { O::H_matrix() } -> std::same_as<ObsJacMat<O>>;
     };
 
@@ -299,7 +305,7 @@ Expected: `All tests passed (3 assertions in 3 test cases)`.
 
 ```bash
 git add cpp/include/immtrack/concepts.hpp tests/cpp/test_concepts.cc tests/cpp/CMakeLists.txt
-git commit -m "feat(concepts): add StateSpace/MotionModel/ObservationModel/Filter concepts"
+git commit -m "feat(concepts): add StateSpace/Motion/Observation/Filter concepts"
 ```
 
 ---
@@ -530,7 +536,7 @@ git commit -m "feat(detail): add EuclideanWithAngles state-space generator"
 using immtrack::XYZVxVyVzYawYawRateSpace;
 
 TEST_CASE("XYZVxVyVzYawYawRateSpace satisfies StateSpace", "[state_spaces]") {
-  STATIC_REQUIRE(immtrack::StateSpace<XYZVxVyVzYawYawRateSpace>);
+  STATIC_REQUIRE(immtrack::Manifold<XYZVxVyVzYawYawRateSpace>);
   STATIC_REQUIRE(XYZVxVyVzYawYawRateSpace::state_dim   == 8);
   STATIC_REQUIRE(XYZVxVyVzYawYawRateSpace::tangent_dim == 8);
 }
@@ -640,9 +646,11 @@ using immtrack::PosYawObs;
 using immtrack::XYZVxVyVzYawYawRateSpace;
 
 TEST_CASE("PosVxyzYawCV: shape and StateSpace typedef", "[traits]") {
-  STATIC_REQUIRE(immtrack::MotionModel<PosVxyzYawCV>);
-  STATIC_REQUIRE(immtrack::HasMotionJacobian<PosVxyzYawCV>);
+  STATIC_REQUIRE(immtrack::Motion<PosVxyzYawCV>);
   STATIC_REQUIRE(immtrack::LinearMotion<PosVxyzYawCV>);
+  // PosVxyzYawCV exposes F_matrix only (KF-compatible). EKF would require
+  // F_jacobian — opt in by adding it.
+  STATIC_REQUIRE_FALSE(immtrack::LinearizableMotion<PosVxyzYawCV>);
   STATIC_REQUIRE(std::is_same_v<PosVxyzYawCV::StateSpace, XYZVxVyVzYawYawRateSpace>);
   STATIC_REQUIRE(PosVxyzYawCV::N == 8);
   STATIC_REQUIRE(std::is_same_v<PosVxyzYawCV::State, Eigen::Matrix<double, 8, 1>>);
@@ -682,7 +690,7 @@ TEST_CASE("PosVxyzYawCV: process_noise zero on yaw_rate row/col", "[traits]") {
 cmake --build build-test -j --target test_traits 2>&1 | tail -30
 ```
 
-Expected: build error — `immtrack::PosVxyzYawCV` does not satisfy `MotionModel`, or `StateSpace` typedef missing, or `N` is 7 not 8.
+Expected: build error — `immtrack::PosVxyzYawCV` does not satisfy `Motion`, or `StateSpace` typedef missing, or `N` is 7 not 8.
 
 ### Step 4.3: Rewrite `motion.hpp`
 
@@ -739,8 +747,9 @@ struct PosVxyzYawCV {
     return Q;
   }
 
-  // Linear -> jacobian == matrix. Both exposed to satisfy LinearMotion.
-  static Cov F_jacobian(const State&, double dt) noexcept { return F_matrix(dt); }
+  // KF compatibility: F_matrix only — F_jacobian is intentionally omitted
+  // because no current filter (UKF or KF) uses it. Add a passthrough if/when
+  // EKF needs to consume this model directly.
   static Cov F_matrix(double dt) noexcept {
     Cov F = Cov::Identity();
     F(StateSpace::X, StateSpace::VX) = dt;
@@ -801,11 +810,11 @@ git commit -m "refactor(motion): PosVxyzYawCV grows to 8D, exposes StateSpace ty
 
 ```cpp
 TEST_CASE("PosYawObs: shape and concept conformance", "[traits]") {
-  STATIC_REQUIRE(immtrack::ObservationModel<PosYawObs>);
-  STATIC_REQUIRE(immtrack::HasObsJacobian<PosYawObs>);
-  STATIC_REQUIRE(immtrack::LinearObs<PosYawObs>);
+  STATIC_REQUIRE(immtrack::Observation<PosYawObs>);
+  STATIC_REQUIRE(immtrack::LinearObservation<PosYawObs>);
+  STATIC_REQUIRE_FALSE(immtrack::LinearizableObservation<PosYawObs>);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::StateSpace, XYZVxVyVzYawYawRateSpace>);
-  STATIC_REQUIRE(immtrack::StateSpace<PosYawObs::MeasSpace>);
+  STATIC_REQUIRE(immtrack::Manifold<PosYawObs::MeasSpace>);
   STATIC_REQUIRE(PosYawObs::M == 4);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::Meas,  Eigen::Matrix<double, 4, 1>>);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::Noise, Eigen::Matrix<double, 4, 4>>);
@@ -830,7 +839,7 @@ TEST_CASE("PosYawObs::h projects (x, y, z, yaw) from 8D state", "[traits]") {
 cmake --build build-test -j --target test_traits 2>&1 | tail -20
 ```
 
-Expected: build error — `PosYawObs::StateSpace` / `PosYawObs::MeasSpace` not found, or `ObservationModel<PosYawObs>` not satisfied.
+Expected: build error — `PosYawObs::StateSpace` / `PosYawObs::MeasSpace` not found, or `Observation<PosYawObs>` not satisfied.
 
 ### Step 5.3: Rewrite `observations.hpp`
 
@@ -869,7 +878,6 @@ struct PosYawObs {
 
   static Noise measurement_noise() noexcept { return Noise::Identity(); }
 
-  static HMat H_jacobian(const StateSpace::State&) noexcept { return H_matrix(); }
   static HMat H_matrix() noexcept {
     HMat H = HMat::Zero();
     H(0, StateSpace::X)   = 1.0;
@@ -991,11 +999,11 @@ class UKF {
 with:
 
 ```cpp
-template <MotionModel Motion, ObservationModel Obs>
-  requires std::same_as<typename Motion::StateSpace, typename Obs::StateSpace>
+template <Motion Mot, Observation Obs>
+  requires std::same_as<typename Mot::StateSpace, typename Obs::StateSpace>
 class UKF {
  public:
-  using StateSpace = typename Motion::StateSpace;
+  using StateSpace = typename Mot::StateSpace;
   using MeasSpace  = typename Obs::MeasSpace;
   static constexpr int N = StateSpace::state_dim;
 ```
@@ -1048,7 +1056,7 @@ Expected: every test passes. Numerical results in UKF tests should match prior 7
 
 ```bash
 git add cpp/include/immtrack/ukf.hpp tests/cpp/test_ukf_predict.cc tests/cpp/test_ukf_update.cc tests/cpp/test_ukf_predict_measurement.cc
-git commit -m "refactor(ukf): constrain on MotionModel/ObservationModel; add Filter<UKF> static_assert"
+git commit -m "refactor(ukf): constrain on Motion/Observation; add Filter<UKF> static_assert"
 ```
 
 ---
@@ -1246,6 +1254,6 @@ without touching `Track`, `BBoxTracker`, or `bindings/_core.cc`.
    7 explaining why no Track code change is required.
 3. **Type consistency:** `XYZVxVyVzYawYawRateSpace::YAW = 6` and
    `YAW_RATE = 7` referenced consistently across Tasks 3, 4, 5, 7.
-   `MotionModel`/`ObservationModel`/`LinearMotion`/`LinearObs`/`Filter`
+   `Motion`/`Observation`/`LinearMotion`/`LinearObservation`/`Filter`
    spellings match across tasks. `StateSpace` and `MeasSpace` member
    names match the concept definitions in Task 1.
