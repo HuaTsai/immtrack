@@ -48,8 +48,6 @@ struct PosVxyzYawCV {
     return Q;
   }
 
-  // Linear -> jacobian == matrix. Both exposed to satisfy LinearMotion.
-  static Cov F_jacobian(const State &, double dt) noexcept { return F_matrix(dt); }
   static Cov F_matrix(double dt) noexcept {
     Cov F = Cov::Identity();
     F(StateSpace::X, StateSpace::VX) = dt;

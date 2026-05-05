@@ -11,9 +11,11 @@ using immtrack::PosYawObs;
 using immtrack::XYZVxVyVzYawYawRateSpace;
 
 TEST_CASE("PosVxyzYawCV: shape and StateSpace typedef", "[traits]") {
-  STATIC_REQUIRE(immtrack::MotionModel<PosVxyzYawCV>);
-  STATIC_REQUIRE(immtrack::HasMotionJacobian<PosVxyzYawCV>);
+  STATIC_REQUIRE(immtrack::Motion<PosVxyzYawCV>);
   STATIC_REQUIRE(immtrack::LinearMotion<PosVxyzYawCV>);
+  // PosVxyzYawCV does not expose F_jacobian (KF only uses F_matrix); EKF
+  // would have to opt in by adding a passthrough.
+  STATIC_REQUIRE_FALSE(immtrack::LinearizableMotion<PosVxyzYawCV>);
   STATIC_REQUIRE(std::is_same_v<PosVxyzYawCV::StateSpace, XYZVxVyVzYawYawRateSpace>);
   STATIC_REQUIRE(PosVxyzYawCV::N == 8);
   STATIC_REQUIRE(std::is_same_v<PosVxyzYawCV::State, Eigen::Matrix<double, 8, 1>>);
@@ -43,11 +45,11 @@ TEST_CASE("PosVxyzYawCV: process_noise zero on yaw_rate row/col", "[traits]") {
 }
 
 TEST_CASE("PosYawObs: shape and concept conformance", "[traits]") {
-  STATIC_REQUIRE(immtrack::ObservationModel<PosYawObs>);
-  STATIC_REQUIRE(immtrack::HasObsJacobian<PosYawObs>);
-  STATIC_REQUIRE(immtrack::LinearObs<PosYawObs>);
+  STATIC_REQUIRE(immtrack::Observation<PosYawObs>);
+  STATIC_REQUIRE(immtrack::LinearObservation<PosYawObs>);
+  STATIC_REQUIRE_FALSE(immtrack::LinearizableObservation<PosYawObs>);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::StateSpace, XYZVxVyVzYawYawRateSpace>);
-  STATIC_REQUIRE(immtrack::StateSpace<PosYawObs::MeasSpace>);
+  STATIC_REQUIRE(immtrack::Manifold<PosYawObs::MeasSpace>);
   STATIC_REQUIRE(PosYawObs::M == 4);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::Meas, Eigen::Matrix<double, 4, 1>>);
   STATIC_REQUIRE(std::is_same_v<PosYawObs::Noise, Eigen::Matrix<double, 4, 4>>);

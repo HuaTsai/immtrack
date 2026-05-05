@@ -8,19 +8,19 @@
 
 namespace immtrack {
 
-// Unscented Kalman Filter constrained on the MotionModel and ObservationModel
+// Unscented Kalman Filter constrained on the Motion and Observation
 // concepts defined in immtrack/concepts.hpp.
 //
 // Concept contract (compile-time):
-//   Motion must satisfy MotionModel<Motion>:
-//     - exposes Motion::StateSpace (satisfies StateSpace concept)
+//   Mot must satisfy Motion<Mot>:
+//     - exposes Mot::StateSpace (satisfies StateSpace concept)
 //     - static State predict(const State&, Scalar dt)
 //     - static Cov   process_noise(Scalar dt)
 //     - static State weighted_mean<K>(sigmas, weights)
 //     - static State residual(a, b)
 //
-//   Obs must satisfy ObservationModel<Obs>:
-//     - exposes Obs::StateSpace (must equal Motion::StateSpace)
+//   Obs must satisfy Observation<Obs>:
+//     - exposes Obs::StateSpace (must equal Mot::StateSpace)
 //     - exposes Obs::MeasSpace  (satisfies StateSpace concept)
 //     - static MeasSpace::State h(const StateSpace::State&)
 //     - static MeasSpace::Cov   measurement_noise()
@@ -30,11 +30,11 @@ namespace immtrack {
 // Default constructor: alpha=1e-3, beta=2, kappa=0 (Merwe scaled).
 // Default state: mu = 0, Sigma = I.
 // update(z) returns NIS (normalized innovation squared).
-template <MotionModel Motion, ObservationModel Obs>
-requires std::same_as<typename Motion::StateSpace, typename Obs::StateSpace>
+template <Motion Mot, Observation Obs>
+  requires std::same_as<typename Mot::StateSpace, typename Obs::StateSpace>
 class UKF {
  public:
-  using StateSpace = typename Motion::StateSpace;
+  using StateSpace = typename Mot::StateSpace;
   using MeasSpace = typename Obs::MeasSpace;
   static constexpr int N = StateSpace::state_dim;
   static constexpr int M = MeasSpace::state_dim;
@@ -69,17 +69,17 @@ class UKF {
 
     Eigen::Matrix<double, N, K> propagated;
     for (int i = 0; i < K; ++i) {
-      propagated.col(i) = Motion::predict(sigmas.col(i), dt);
+      propagated.col(i) = Mot::predict(sigmas.col(i), dt);
     }
 
-    const StateVec x_new = Motion::template weighted_mean<K>(propagated, weights_.mean_weights);
+    const StateVec x_new = Mot::template weighted_mean<K>(propagated, weights_.mean_weights);
 
     StateMat P_new = StateMat::Zero();
     for (int i = 0; i < K; ++i) {
-      const StateVec d = Motion::residual(propagated.col(i), x_new);
+      const StateVec d = Mot::residual(propagated.col(i), x_new);
       P_new.noalias() += weights_.cov_weights(i) * d * d.transpose();
     }
-    P_new += Motion::process_noise(dt);
+    P_new += Mot::process_noise(dt);
 
     x_ = x_new;
     P_ = 0.5 * (P_new + P_new.transpose());
@@ -94,7 +94,7 @@ class UKF {
     CrossMat T = CrossMat::Zero();
     for (int i = 0; i < K; ++i) {
       const MeasVec dz = Obs::residual(c.z_sigmas.col(i), c.z_pred);
-      const StateVec dx = Motion::residual(c.sigmas.col(i), x_);
+      const StateVec dx = Mot::residual(c.sigmas.col(i), x_);
       T.noalias() += weights_.cov_weights(i) * dx * dz.transpose();
     }
 

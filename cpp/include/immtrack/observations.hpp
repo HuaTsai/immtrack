@@ -30,7 +30,6 @@ struct PosYawObs {
 
   static Noise measurement_noise() noexcept { return Noise::Identity(); }
 
-  static HMat H_jacobian(const StateSpace::State &) noexcept { return H_matrix(); }
   static HMat H_matrix() noexcept {
     HMat H = HMat::Zero();
     H(0, StateSpace::X) = 1.0;

@@ -5,8 +5,8 @@
 
 using immtrack::XYZVxVyVzYawYawRateSpace;
 
-TEST_CASE("XYZVxVyVzYawYawRateSpace satisfies StateSpace", "[state_spaces]") {
-  STATIC_REQUIRE(immtrack::StateSpace<XYZVxVyVzYawYawRateSpace>);
+TEST_CASE("XYZVxVyVzYawYawRateSpace satisfies Manifold", "[state_spaces]") {
+  STATIC_REQUIRE(immtrack::Manifold<XYZVxVyVzYawYawRateSpace>);
   STATIC_REQUIRE(XYZVxVyVzYawYawRateSpace::state_dim == 8);
   STATIC_REQUIRE(XYZVxVyVzYawYawRateSpace::tangent_dim == 8);
 }
