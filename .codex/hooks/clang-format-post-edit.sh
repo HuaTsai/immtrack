@@ -15,7 +15,7 @@ jq -r '
     sub("^\\*\\*\\* Move to: "; "")
   )
 ' "$input" |
-  awk 'NF && /\.cc$/ && !seen[$0]++' |
+  awk 'NF && /\.(cc|cpp|h|hpp)$/ && !seen[$0]++' |
   while IFS= read -r file; do
     case "$file" in
       /*) path="$file" ;;
