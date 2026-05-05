@@ -12,35 +12,35 @@ namespace immtrack {
 // Trait contract (compile-time):
 //
 //   class Motion {
-//       static constexpr int N;
-//       using State = Eigen::Matrix<double, N, 1>;
-//       using Cov   = Eigen::Matrix<double, N, N>;
+//     static constexpr int N;
+//     using State = Eigen::Matrix<double, N, 1>;
+//     using Cov   = Eigen::Matrix<double, N, N>;
 //
-//       static State predict(const State &x, double dt);
-//       static Cov   process_noise(double dt);
+//     static State predict(const State &x, double dt);
+//     static Cov   process_noise(double dt);
 //
-//       template <int K>
-//       static State weighted_mean(
-//           const Eigen::Matrix<double, N, K> &sigmas,
-//           const Eigen::Matrix<double, K, 1> &weights);
+//     template <int K>
+//     static State weighted_mean(
+//         const Eigen::Matrix<double, N, K> &sigmas,
+//         const Eigen::Matrix<double, K, 1> &weights);
 //
-//       static State residual(const State &a, const State &b);
+//     static State residual(const State &a, const State &b);
 //   };
 //
 //   class Obs {
-//       static constexpr int M;
-//       using Meas  = Eigen::Matrix<double, M, 1>;
-//       using Noise = Eigen::Matrix<double, M, M>;
+//     static constexpr int M;
+//     using Meas  = Eigen::Matrix<double, M, 1>;
+//     using Noise = Eigen::Matrix<double, M, M>;
 //
-//       template <class State> static Meas h(const State &x);
-//       static Noise measurement_noise();
+//     template <class State> static Meas h(const State &x);
+//     static Noise measurement_noise();
 //
-//       template <int K>
-//       static Meas weighted_mean(
-//           const Eigen::Matrix<double, M, K> &sigmas,
-//           const Eigen::Matrix<double, K, 1> &weights);
+//     template <int K>
+//     static Meas weighted_mean(
+//         const Eigen::Matrix<double, M, K> &sigmas,
+//         const Eigen::Matrix<double, K, 1> &weights);
 //
-//       static Meas residual(const Meas &a, const Meas &b);
+//     static Meas residual(const Meas &a, const Meas &b);
 //   };
 //
 // Default constructor: alpha=1e-3, beta=2, kappa=0 (Merwe scaled).
