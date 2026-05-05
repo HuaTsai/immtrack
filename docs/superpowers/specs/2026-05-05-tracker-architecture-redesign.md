@@ -292,7 +292,7 @@ remains the default until benchmarking justifies the CTRV mode.
 | `cpp/include/immtrack/cost_policies.hpp` | `MahalanobisCost<Filter>` already works on filter state/cov; needs to be checked against the new `Filter::StateSpace` typedef path.              |
 | `tests/`                                 | Update fixtures that hand-construct 7D states to construct 8D states (insert `yaw_rate=0`).                                                      |
 | `bindings/`                              | If Python bindings expose state vector size, update to 8D.                                                                                       |
-| `ref/concept_kf_demo.{hpp,cc}`           | Stays as a smaller pedagogical demo. The concept layer it sketches is what gets promoted into the production headers.                            |
+| `ref/concept_kf_demo.{hpp,cc}`           | Pedagogical demo that sketched the concept layer. Removed once Phase 1 promoted the design into production headers.                              |
 
 ## Risks
 
