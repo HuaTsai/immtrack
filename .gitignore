@@ -13,6 +13,3 @@ wheels/
 
 # C extensions build files
 *.so
-
-# VS Code settings
-.vscode/
