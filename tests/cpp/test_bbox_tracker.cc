@@ -107,6 +107,26 @@ TEST_CASE("BBoxTracker: track deleted after max_age misses", "[tracker]") {
   REQUIRE(tr.track_count() == 1);  // old deleted, new tentative
 }
 
+TEST_CASE("Track init places yaw_rate at idx 7 with finite variance", "[bbox_tracker]") {
+  using namespace immtrack;
+  using F = UKF<PosVxyzYawCV, PosYawObs>;
+  BoundingBox d{};
+  d.x = 1.0;
+  d.y = 2.0;
+  d.z = 3.0;
+  d.rot = 0.4;
+  d.l = 4.0;
+  d.w = 1.8;
+  d.h = 1.6;
+  d.score = 0.9;
+  d.class_name = "car";
+  Track<F> t(/*id=*/0, d);
+  const auto &x = t.filter().state();
+  REQUIRE(x(F::StateSpace::YAW_RATE) == Catch::Approx(0.0));
+  const auto &P = t.filter().covariance();
+  REQUIRE(P(F::StateSpace::YAW_RATE, F::StateSpace::YAW_RATE) > 0.0);
+}
+
 TEST_CASE("BBoxTracker: reset clears all tracks and resets ID counter", "[tracker][reset]") {
   Tracker tr;
   tr.update({box("car", 0, 0, 0, 0)});

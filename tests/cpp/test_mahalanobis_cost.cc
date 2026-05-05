@@ -16,7 +16,7 @@ namespace {
 Ukf make_ukf_at(double x, double y, double z, double yaw, double cov_diag = 1.0) {
   Ukf ukf;
   Ukf::StateVec s;
-  s << x, y, z, 0.0, 0.0, 0.0, yaw;
+  s << x, y, z, 0.0, 0.0, 0.0, yaw, 0.0;
   ukf.init(s, Ukf::StateMat::Identity() * cov_diag);
   return ukf;
 }
